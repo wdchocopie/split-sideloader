@@ -106,11 +106,20 @@ jobs:
       - name: Check the signer
         if: steps.signing.outputs.signed == 'true'
         run: |
+          apk=app/build/outputs/apk/release/app-release.apk
           tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          actual=$("$tools/apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          echo "apksigner from $tools"
+          # Certificate details are public; printing them makes a mismatch diagnosable.
+          if ! out=$("$tools/apksigner" verify --print-certs "$apk" 2>&1); then
+            printf '%s\n' "$out"
+            echo "::error::apksigner could not verify $apk"
+            exit 1
+          fi
+          printf '%s\n' "$out"
+          # The signer label varies between apksigner versions ("Signer #1", "Signer (minSdkVersion=…)").
+          actual=$(printf '%s\n' "$out" | sed -n 's/^Signer.*certificate SHA-256 digest: *//p' | head -1 | tr -d '[:space:]')
           if [ "$actual" != "$EXPECTED_SIGNER_SHA256" ]; then
-            echo "::error::signed by $actual, expected $EXPECTED_SIGNER_SHA256"
+            echo "::error::signed by '${actual:-nothing readable}', expected $EXPECTED_SIGNER_SHA256"
             exit 1
           fi
           echo "signer ok: $actual"
