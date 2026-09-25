@@ -2,6 +2,7 @@ package com.sideload.splitinstaller.core.apps
 
 import android.content.ContentValues
 import android.content.Context
+import com.sideload.splitinstaller.core.Busy
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -40,7 +41,21 @@ object AppExporter {
 
     const val FOLDER = "SplitSideloader"
 
+    /** Counted as busy work: a self-update must not end the process halfway through a backup. */
     suspend fun export(
+        context: Context,
+        packageName: String,
+        onProgress: (Float) -> Unit,
+    ): ExportResult {
+        Busy.enter()
+        try {
+            return writeExport(context, packageName, onProgress)
+        } finally {
+            Busy.exit()
+        }
+    }
+
+    private suspend fun writeExport(
         context: Context,
         packageName: String,
         onProgress: (Float) -> Unit,

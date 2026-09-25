@@ -8,6 +8,11 @@ plugins {
     alias(libs.plugins.paparazzi)
 }
 
+// Where release builds look for their own next version. CI passes the repository it runs in,
+// so a fork updates from its own releases rather than this one.
+val otaChannel = (findProperty("otaChannel") as String?)
+    ?: "https://github.com/wdchocopie/split-sideloader/releases/latest/download/ota.json"
+
 val keystorePropsFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
@@ -21,8 +26,8 @@ android {
         applicationId = "com.sideload.splitinstaller"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.5.0"
+        versionCode = 7
+        versionName = "1.5.1"
         resourceConfigurations += listOf("en", "vi")
     }
 
@@ -42,9 +47,12 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             if (keystoreProps.isNotEmpty()) signingConfig = signingConfigs.getByName("release")
+            buildConfigField("String", "OTA_CHANNEL", "\"$otaChannel\"")
         }
         debug {
             applicationIdSuffix = ".debug"
+            // A debug build is a different package: no release could ever update it.
+            buildConfigField("String", "OTA_CHANNEL", "\"\"")
         }
     }
 

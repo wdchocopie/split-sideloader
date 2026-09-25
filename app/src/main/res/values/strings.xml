@@ -478,6 +478,7 @@
     <string name="ota_check_now">Check now</string>
     <string name="ota_download">Download</string>
     <string name="ota_install_now">Install now</string>
+    <string name="ota_downloading">Downloading…</string>
     <string name="ota_later">Later</string>
     <string name="ota_installing">Installing a new build of this app…</string>
     <string name="ota_state_update">%1$s is out</string>
@@ -485,7 +486,7 @@
     <string name="ota_state_current">This is the newest build on the channel.</string>
     <string name="ota_state_unknown">Found %1$s, but the versions could not be compared. Downloading it is still safe: the file is checked before anything is installed.</string>
     <string name="ota_state_error">Check failed: %1$s</string>
-    <string name="ota_attempt_failed">The last self-install did not take. The app will not retry on its own — install it yourself once to see the error.</string>
+    <string name="ota_attempt_failed">Two self-installs in a row did not take, so the app has stopped trying by itself. Install it yourself once to see the error.</string>
     <string name="ota_card_title">Split Sideloader %1$s is out</string>
     <string name="ota_card_from">You are running %1$s.</string>
     <string name="ota_needs_tap">Checked and ready. Without Shizuku or root, Android needs one tap to replace a running app.</string>

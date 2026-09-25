@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -59,12 +61,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -238,7 +246,9 @@ fun SettingsScreen(
                     SwitchRow(
                         stringResource(R.string.updates_wifi_only), stringResource(R.string.updates_wifi_only_desc),
                         values.updateWifiOnly, { actions.onValues(values.copy(updateWifiOnly = it)) },
-                        Icons.Rounded.Wifi, enabled = values.updateInterval != UpdateInterval.OFF,
+                        Icons.Rounded.Wifi,
+                        // It also governs this app's own automatic downloads.
+                        enabled = values.updateInterval != UpdateInterval.OFF || OtaChannel.parse(values.otaChannel).isOn,
                     )
                     SwitchRow(
                         stringResource(R.string.updates_auto_download), stringResource(R.string.updates_auto_download_desc),
@@ -464,20 +474,36 @@ private fun OtaSettings(
     silent: Boolean,
     actions: SettingsActions,
 ) {
-    var channel by rememberSaveable(values.otaChannel) { mutableStateOf(values.otaChannel) }
+    // One state object for the whole visit, so every commit — including the one on leaving —
+    // reads what is in the field now. It follows the stored value when that changes.
+    var channel by rememberSaveable { mutableStateOf(values.otaChannel) }
+    LaunchedEffect(values.otaChannel) {
+        if (channel.trim() != values.otaChannel.trim()) channel = values.otaChannel
+    }
     val parsed = OtaChannel.parse(channel)
+    // Committed when editing ends, not per keystroke: a half-typed address would read as "off"
+    // and throw away a build that is already downloaded.
+    val focus = LocalFocusManager.current
+    val latestValues by rememberUpdatedState(values)
+    val latestActions by rememberUpdatedState(actions)
+    val commit = {
+        if (channel.trim() != latestValues.otaChannel.trim()) {
+            latestActions.onValues(latestValues.copy(otaChannel = channel.trim()))
+        }
+    }
+    val latestCommit by rememberUpdatedState(commit)
+    DisposableEffect(Unit) { onDispose { latestCommit() } }
     AppCard(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), spacing = 8.dp) {
         KeyValue(stringResource(R.string.ota_installed), BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")")
         OutlinedTextField(
             value = channel,
-            onValueChange = {
-                channel = it
-                actions.onValues(values.copy(otaChannel = it))
-            },
+            onValueChange = { channel = it },
             label = { Text(stringResource(R.string.ota_channel_label)) },
             placeholder = { Text(stringResource(R.string.ota_channel_hint)) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
+            modifier = Modifier.fillMaxWidth().onFocusChanged { if (!it.isFocused) commit() },
         )
         Text(
             stringResource(
@@ -539,7 +565,7 @@ private fun OtaSettings(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (ota.attemptFailures > 0) {
+            if (ota.stoppedRetrying) {
                 FindingRow(
                     com.sideload.splitinstaller.core.bundle.Severity.WARN,
                     stringResource(R.string.ota_attempt_failed),
@@ -547,7 +573,7 @@ private fun OtaSettings(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = actions.onOtaCheck, enabled = !checking) {
+                FilledTonalButton(onClick = { commit(); actions.onOtaCheck() }, enabled = !checking) {
                     if (checking) {
                         CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                     } else {
@@ -557,10 +583,10 @@ private fun OtaSettings(
                     Text(stringResource(R.string.ota_check_now))
                 }
                 when (ota.state) {
-                    OtaState.UPDATE -> TextButton(onClick = actions.onOtaDownload) {
+                    OtaState.UPDATE -> TextButton(onClick = { commit(); actions.onOtaDownload() }) {
                         Text(stringResource(R.string.ota_download))
                     }
-                    OtaState.READY -> TextButton(onClick = actions.onOtaInstall) {
+                    OtaState.READY -> TextButton(onClick = { commit(); actions.onOtaInstall() }) {
                         Text(stringResource(R.string.ota_install_now))
                     }
                     else -> Unit

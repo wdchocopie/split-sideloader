@@ -21,6 +21,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- The in-app browser for bundle sources -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- An automatic self-update waits for an unmetered network when "Wi-Fi only" is on -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Background update checks on ROMs that would otherwise freeze them -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 

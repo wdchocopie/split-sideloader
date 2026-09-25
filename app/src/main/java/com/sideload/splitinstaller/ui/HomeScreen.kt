@@ -107,6 +107,7 @@ fun HomeScreen(
     actions: HomeActions,
     modifier: Modifier = Modifier,
     ota: OtaStatus? = null,
+    otaDownloading: Boolean = false,
 ) {
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -136,7 +137,7 @@ fun HomeScreen(
             item(key = "hero") { StatusHero(state.device, actions.onCapability) }
 
             if (ota != null && ota.hasUpdate) {
-                item(key = "ota") { OtaCard(ota, state.device?.silentAvailable == true, actions) }
+                item(key = "ota") { OtaCard(ota, state.device?.silentAvailable == true, otaDownloading, actions) }
             }
 
             val device = state.device
@@ -568,7 +569,7 @@ private fun historyStatus(entry: HistoryEntry): Triple<Int, Tone, ImageVector> =
 
 /** This app has a newer build waiting. Shown here because it is the first screen. */
 @Composable
-private fun OtaCard(ota: OtaStatus, silent: Boolean, actions: HomeActions) {
+private fun OtaCard(ota: OtaStatus, silent: Boolean, downloading: Boolean, actions: HomeActions) {
     val ready = ota.state == OtaState.READY
     AppCard(color = Tone.INFO.container(), contentColor = Tone.INFO.onContainer()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -592,7 +593,10 @@ private fun OtaCard(ota: OtaStatus, silent: Boolean, actions: HomeActions) {
             Text(stringResource(R.string.ota_needs_tap), style = MaterialTheme.typography.bodySmall)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = if (ready) actions.onOtaInstall else actions.onOtaDownload) {
+            FilledTonalButton(
+                onClick = if (ready) actions.onOtaInstall else actions.onOtaDownload,
+                enabled = ready || !downloading,
+            ) {
                 Icon(
                     if (ready) Icons.Rounded.InstallMobile else Icons.Rounded.Download,
                     null,
@@ -601,6 +605,7 @@ private fun OtaCard(ota: OtaStatus, silent: Boolean, actions: HomeActions) {
                 Spacer(Modifier.width(8.dp))
                 Text(
                     if (ready) stringResource(R.string.ota_install_now)
+                    else if (downloading) stringResource(R.string.ota_downloading)
                     else stringResource(R.string.ota_download) +
                         (ota.release?.size?.takeIf { it > 0 }?.let { " · " + humanSize(it) } ?: "")
                 )

@@ -57,6 +57,8 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(selectedId = Sources.selected(app).id) }
         viewModelScope.launch { Sources.all.collect { list -> _state.update { it.copy(sources = list) } } }
         viewModelScope.launch { Downloads.completed.collect { refreshDownloads() } }
+        // Downloads started elsewhere (an update check, the OTA card) show up here at once.
+        viewModelScope.launch { Downloads.changed.collect { refreshDownloads() } }
         refreshDownloads()
     }
 

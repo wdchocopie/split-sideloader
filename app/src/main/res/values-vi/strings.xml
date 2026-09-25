@@ -474,6 +474,7 @@
     <string name="ota_check_now">Kiểm tra ngay</string>
     <string name="ota_download">Tải về</string>
     <string name="ota_install_now">Cài ngay</string>
+    <string name="ota_downloading">Đang tải…</string>
     <string name="ota_later">Để sau</string>
     <string name="ota_installing">Đang cài bản mới của chính app…</string>
     <string name="ota_state_update">Đã có bản %1$s</string>
@@ -481,7 +482,7 @@
     <string name="ota_state_current">Đây đã là bản mới nhất trên kênh.</string>
     <string name="ota_state_unknown">Thấy bản %1$s nhưng không so được phiên bản. Tải về vẫn an toàn: file luôn bị kiểm trước khi cài.</string>
     <string name="ota_state_error">Kiểm tra thất bại: %1$s</string>
-    <string name="ota_attempt_failed">Lần tự cài trước không thành. App sẽ không tự thử lại — bấm cài tay một lần để xem lỗi.</string>
+    <string name="ota_attempt_failed">Tự cài hai lần liên tiếp không thành, nên app đã thôi tự thử. Bấm cài tay một lần để xem lỗi.</string>
     <string name="ota_card_title">Đã có Split Sideloader %1$s</string>
     <string name="ota_card_from">Bản đang chạy là %1$s.</string>
     <string name="ota_needs_tap">Đã kiểm xong. Không có Shizuku hay root thì Android cần bạn bấm một lần để thay app đang chạy.</string>

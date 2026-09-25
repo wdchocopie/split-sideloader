@@ -33,6 +33,12 @@ data class OtaChannel(val kind: OtaChannelKind, val value: String) {
             val text = raw?.trim().orEmpty()
             if (text.isEmpty()) return OFF
             val lower = text.lowercase()
+            // A JSON file is a manifest wherever it is hosted — including a release asset on
+            // github.com, which would otherwise be read as a repository link and lose the
+            // versionCode and SHA-256 the manifest carries.
+            if (lower.startsWith("https://") && lower.substringBefore('?').substringBefore('#').endsWith(".json")) {
+                return OtaChannel(OtaChannelKind.MANIFEST, text)
+            }
             if (lower.startsWith("https://github.com/") || lower.startsWith("github.com/") ||
                 (!lower.startsWith("http") && text.count { it == '/' } == 1)
             ) {
@@ -58,7 +64,13 @@ data class OtaRelease(
     val notes: String? = null,
     val pageUrl: String? = null,
     val minSdk: Int = 0,
-)
+) {
+    /**
+     * What a refusal is remembered by. The URL alone is not enough: a channel may publish a
+     * fixed build under the same file name.
+     */
+    val identity: String get() = url + "#" + (sha256 ?: versionName ?: versionCode.toString())
+}
 
 enum class OtaState {
     /** No channel configured. */
@@ -81,11 +93,23 @@ data class OtaStatus(
     val message: String? = null,
     /** Set once the file is downloaded and verified. */
     val fileUri: String? = null,
+    /** The URL [fileUri] was downloaded from, so the file is never mistaken for another build. */
+    val fileSourceUrl: String? = null,
     /** versionCode of the last install this app started on itself. */
     val attemptedVersion: Long = 0,
     val attemptFailures: Int = 0,
+    /** [OtaRelease.identity] of a build whose file failed the checks; not fetched again by itself. */
+    val refusedKey: String? = null,
+    /** [OtaRelease.identity] of the build the "ready, tap to install" notification was posted for. */
+    val readyNotifiedKey: String? = null,
 ) {
     val hasUpdate: Boolean get() = state == OtaState.UPDATE || state == OtaState.READY
+
+    /** A build is known and still to be installed. */
+    val pending: Boolean get() = release != null && hasUpdate
+
+    /** Two self-installs in a row failed; from then on it waits to be asked. */
+    val stoppedRetrying: Boolean get() = attemptFailures >= 2
 }
 
 /** Why a downloaded OTA file was refused. Codes, so the UI can say it in either language. */

@@ -24,8 +24,11 @@ import com.sideload.splitinstaller.core.install.InstallRequest
 import com.sideload.splitinstaller.core.install.Installer
 import com.sideload.splitinstaller.core.install.RootShell
 import com.sideload.splitinstaller.core.log.EventLog
+import com.sideload.splitinstaller.core.ota.OtaChannel
 import com.sideload.splitinstaller.core.ota.OtaFlow
 import com.sideload.splitinstaller.core.ota.OtaInstallWorker
+import com.sideload.splitinstaller.core.ota.OtaProblem
+import com.sideload.splitinstaller.core.ota.OtaState
 import com.sideload.splitinstaller.core.ota.OtaStore
 import com.sideload.splitinstaller.core.sign.ApkSignatures
 import com.sideload.splitinstaller.core.sign.CertInfo
@@ -86,6 +89,34 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
     init {
         _state.update { it.copy(watchEnabled = prefs.watchEnabled, backupFirst = prefs.backupBeforeUpdate) }
         refreshCapabilities()
+    }
+
+    private val otaCheckRunning = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val otaRecheck = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * Called each time the app comes to the front. The background schedule may be hours away,
+     * so opening the app asks too, when the last answer is older than a few hours.
+     */
+    fun checkOtaIfStale() {
+        if (!OtaChannel.parse(prefs.otaChannel).isOn) return
+        // A "check" made while the channel was off answered nothing, so it is never fresh.
+        val last = OtaStore.status.value
+        if (last.state != OtaState.OFF && System.currentTimeMillis() - last.checkedAt < OTA_STALE_MS) return
+        // One at a time; a request that arrives meanwhile (e.g. the channel changed) runs after.
+        if (!otaCheckRunning.compareAndSet(false, true)) {
+            otaRecheck.set(true)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                runCatching { OtaFlow.check(getApplication(), auto = true) }
+                    .onFailure { EventLog.warn("OTA check on launch failed: " + it.message) }
+            } finally {
+                otaCheckRunning.set(false)
+                if (otaRecheck.getAndSet(false)) checkOtaIfStale()
+            }
+        }
     }
 
     // ---- capabilities ------------------------------------------------------
@@ -265,18 +296,48 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
             .onFailure { EventLog.error("OTA check failed: " + it.message) }
     }
 
-    fun downloadOta() = viewModelScope.launch {
+    /** [onStarted] runs only when a transfer really started, not when one was already under way. */
+    fun downloadOta(onStarted: () -> Unit = {}) = viewModelScope.launch {
         val release = OtaStore.status.value.release ?: return@launch
-        withContext(Dispatchers.IO) {
-            runCatching { OtaFlow.startDownload(getApplication(), release) }
+        val started = withContext(Dispatchers.IO) {
+            runCatching { OtaFlow.startDownload(getApplication(), release, automatic = false) }
                 .onFailure { EventLog.error("could not start the OTA download: " + it.message) }
+                .getOrDefault(false)
         }
+        if (started) onStarted()
     }
 
-    /** The worker does the verifying; this only asks for it. */
-    fun installOta() {
-        val uri = OtaStore.status.value.fileUri?.let(Uri::parse) ?: return
-        OtaInstallWorker.enqueue(getApplication(), uri, userAsked = true)
+    /**
+     * With Shizuku or root the worker installs it. Without, Android has to ask, and it can only
+     * ask an app that is on screen: the ordinary install screen does that, after the same
+     * checks the worker would make.
+     */
+    fun installOta() = viewModelScope.launch {
+        val app = getApplication<Application>()
+        val status = OtaStore.status.value
+        val uri = status.fileUri?.let(Uri::parse) ?: return@launch
+        val sourceUrl = status.fileSourceUrl ?: status.release?.url
+        val silent = withContext(Dispatchers.IO) { OtaFlow.silentBackend(app) }
+        if (silent != null) {
+            OtaInstallWorker.enqueue(app, uri, sourceUrl, userAsked = true, replace = true)
+            return@launch
+        }
+        // The file may have been deleted, e.g. by a storage cleaner: fetch it again instead.
+        val release = status.release
+        val missing = withContext(Dispatchers.IO) { !OtaFlow.fileExists(app, uri) }
+        if (missing) {
+            withContext(Dispatchers.IO) {
+                OtaStore.clearMissingFile(app, uri.toString())
+                if (release != null) OtaFlow.startDownload(app, release, automatic = false)
+            }
+            return@launch
+        }
+        val (info, problem) = withContext(Dispatchers.IO) { OtaFlow.inspectAndVerify(app, uri, sourceUrl) }
+        if (problem != null || info == null) {
+            withContext(Dispatchers.IO) { OtaFlow.refuse(app, uri, sourceUrl, problem ?: OtaProblem.UNREADABLE) }
+            return@launch
+        }
+        open(uri)
     }
 
     fun dismissOta() {
@@ -396,3 +457,6 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearError() = _state.update { it.copy(error = null) }
 }
+
+/** How old the last check on this app's own updates may be before opening the app repeats it. */
+private const val OTA_STALE_MS = 6 * 60 * 60 * 1000L

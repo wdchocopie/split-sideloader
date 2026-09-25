@@ -45,6 +45,10 @@ data class DownloadItem(
     val active: Boolean
         get() = status == DownloadStatus.PENDING || status == DownloadStatus.RUNNING || status == DownloadStatus.PAUSED
 
+    /** Held back by DownloadManager until an unmetered network is available. */
+    val waitingForWifi: Boolean
+        get() = status == DownloadStatus.PAUSED && reason == DownloadManager.PAUSED_QUEUED_FOR_WIFI
+
     val reasonText: String
         get() = when (reason) {
             in 100..599 -> "HTTP $reason"
@@ -84,11 +88,18 @@ object Downloads {
     /** Finished downloads, for whoever is on screen to act on. */
     val completed: SharedFlow<DownloadItem> = _completed
 
+    private val _changed = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
+
+    /** Something was started or removed, from anywhere in the app: lists should look again. */
+    val changed: SharedFlow<Unit> = _changed
+
     fun start(
         context: Context,
         request: DownloadRequest,
         autoInstall: Boolean = false,
         expectedPackage: String? = null,
+        /** False pauses the transfer on mobile data until an unmetered network is back. */
+        allowMetered: Boolean = true,
     ): DownloadItem {
         val dm = context.getSystemService(DownloadManager::class.java)
         val name = DownloadNames.fileName(request.url, request.contentDisposition, request.mimeType)
@@ -100,7 +111,7 @@ object Downloads {
             .setDescription(host)
             .setMimeType(mimeFor(name, request.mimeType))
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-            .setAllowedOverMetered(true)
+            .setAllowedOverMetered(allowMetered)
             .setAllowedOverRoaming(true)
         request.userAgent?.takeIf { it.isNotBlank() }?.let { req.addRequestHeader("User-Agent", it) }
         runCatching { CookieManager.getInstance().getCookie(request.url) }.getOrNull()
@@ -109,7 +120,8 @@ object Downloads {
         setDestination(context, req, name)
 
         val id = dm.enqueue(req)
-        track(context, id, Tracked(host, autoInstall, expectedPackage))
+        track(context, id, Tracked(host, autoInstall, expectedPackage, request.url))
+        _changed.tryEmit(Unit)
         EventLog.info(
             "download started: $name from ${host ?: "?"}" + if (autoInstall) " (installs itself when done)" else ""
         )
@@ -177,7 +189,7 @@ object Downloads {
                         total = c.getLong(totalCol),
                         reason = c.getInt(reasonCol),
                         uri = if (status == DownloadStatus.DONE) runCatching { dm.getUriForDownloadedFile(id) }.getOrNull() else null,
-                        sourceUrl = c.getString(uriCol),
+                        sourceUrl = info?.requestedUrl ?: c.getString(uriCol),
                         time = c.getLong(timeCol),
                         autoInstall = info?.autoInstall == true,
                         expectedPackage = info?.expectedPackage,
@@ -195,10 +207,21 @@ object Downloads {
     fun cancel(context: Context, id: Long) {
         runCatching { context.getSystemService(DownloadManager::class.java).remove(id) }
         untrack(context, setOf(id))
+        _changed.tryEmit(Unit)
     }
 
     /** Drops a finished download from the list; the file itself stays where it is. */
     fun forget(context: Context, id: Long) = untrack(context, setOf(id))
+
+    /** Deletes one of our downloads, file included, by the uri it finished under. */
+    fun removeByUri(context: Context, uri: String) {
+        list(context).firstOrNull { it.uri?.toString() == uri }?.let { cancel(context, it.id) }
+    }
+
+    /** Stops every transfer still running for one package, e.g. when its update channel is cleared. */
+    fun cancelActiveFor(context: Context, packageName: String) {
+        list(context).filter { it.active && it.expectedPackage == packageName }.forEach { cancel(context, it.id) }
+    }
 
     internal fun onFinished(context: Context, id: Long) {
         if (id !in tracked(context)) return
@@ -212,7 +235,7 @@ object Downloads {
                     // Our own package never goes through the ordinary install flow: it has
                     // to be checked against the copy that is running first.
                     item.expectedPackage == BuildConfig.APPLICATION_ID ->
-                        OtaInstallWorker.enqueue(context, uri)
+                        OtaInstallWorker.enqueue(context, uri, item.sourceUrl, replace = true)
                     // The worker checks there is a silent method before it installs anything.
                     item.autoInstall -> InstallWorker.enqueue(context, uri, item.expectedPackage)
                     else -> Notifications.downloaded(context, item.fileName, uri)
@@ -232,17 +255,27 @@ object Downloads {
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    private data class Tracked(val host: String?, val autoInstall: Boolean, val expectedPackage: String?)
+    private data class Tracked(
+        val host: String?,
+        val autoInstall: Boolean,
+        val expectedPackage: String?,
+        /**
+         * The URL as requested. DownloadManager replaces its own copy with the target of a
+         * permanent redirect, so its column cannot say which release a file belongs to.
+         */
+        val requestedUrl: String? = null,
+    )
 
-    /** id → what the download is for, kept as "id|host|auto|package" strings. */
+    /** id → what the download is for, kept as "id|host|auto|package|url" strings; the URL is last. */
     private fun tracked(context: Context): Map<Long, Tracked> =
         prefs(context).getStringSet(KEY_TRACKED, emptySet()).orEmpty().mapNotNull { entry ->
-            val parts = entry.split('|')
+            val parts = entry.split('|', limit = 5)
             val id = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
             id to Tracked(
                 host = parts.getOrNull(1)?.ifBlank { null },
                 autoInstall = parts.getOrNull(2) == "1",
                 expectedPackage = parts.getOrNull(3)?.ifBlank { null },
+                requestedUrl = parts.getOrNull(4)?.ifBlank { null },
             )
         }.toMap()
 
@@ -254,6 +287,7 @@ object Downloads {
             info.host.orEmpty(),
             if (info.autoInstall) "1" else "0",
             info.expectedPackage.orEmpty(),
+            info.requestedUrl.orEmpty(),
         ).joinToString("|")
         prefs(context).edit { putStringSet(KEY_TRACKED, next.toList().takeLast(50).toSet()) }
     }

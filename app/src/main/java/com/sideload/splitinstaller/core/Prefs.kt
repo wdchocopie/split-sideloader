@@ -3,6 +3,7 @@ package com.sideload.splitinstaller.core
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.sideload.splitinstaller.BuildConfig
 import com.sideload.splitinstaller.core.install.BackendKind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -126,23 +127,50 @@ class Prefs private constructor(private val sp: SharedPreferences) {
 
     // ---- this app's own updates (OTA) -------------------------------------------
 
-    /** "owner/repo" or an https URL to a manifest. Empty turns OTA off. */
+    /**
+     * "owner/repo" or an https URL to a manifest. Release builds come with their own channel
+     * preset; clearing the field (an explicit empty value) turns OTA off.
+     */
     var otaChannel: String
-        get() = sp.getString(KEY_OTA_CHANNEL, "").orEmpty()
+        get() = sp.getString(KEY_OTA_CHANNEL, null) ?: BuildConfig.OTA_CHANNEL
         set(v) = sp.edit { putString(KEY_OTA_CHANNEL, v.trim()) }
 
     var otaAutoDownload: Boolean
         get() = sp.getBoolean(KEY_OTA_DOWNLOAD, true)
         set(v) = sp.edit { putBoolean(KEY_OTA_DOWNLOAD, v) }
 
-    /** Replace the running copy without asking. Needs Shizuku or root. */
+    /**
+     * Replace the running copy without asking. Needs Shizuku or root, and only happens while
+     * no screen of the app is open.
+     */
     var otaAutoInstall: Boolean
-        get() = sp.getBoolean(KEY_OTA_INSTALL, false)
+        get() = sp.getBoolean(KEY_OTA_INSTALL, true)
         set(v) = sp.edit { putBoolean(KEY_OTA_INSTALL, v) }
+
+    /** Effective value: the settings screen disables auto-install while auto-download is off. */
+    val otaInstallsItself: Boolean get() = otaAutoDownload && otaAutoInstall
 
     var extraWatchDirs: Set<String>
         get() = sp.getStringSet(KEY_DIRS, emptySet()).orEmpty()
         set(v) = sp.edit { putStringSet(KEY_DIRS, v) }
+
+    /**
+     * Brings values written by older versions in line with this one. Runs on every launch and
+     * does nothing once the stored version is current.
+     */
+    fun migrate() {
+        val from = sp.getInt(KEY_PREFS_VERSION, 0)
+        if (from >= BuildConfig.VERSION_CODE) return
+        sp.edit {
+            if (from < 7) {
+                // Up to 1.5.0 every setting was written whenever any one changed, so an empty OTA
+                // channel and auto-install off were only its defaults at the time, not a choice.
+                if (sp.getString(KEY_OTA_CHANNEL, null) == "") remove(KEY_OTA_CHANNEL)
+                if (sp.contains(KEY_OTA_INSTALL) && !sp.getBoolean(KEY_OTA_INSTALL, true)) remove(KEY_OTA_INSTALL)
+            }
+            putInt(KEY_PREFS_VERSION, BuildConfig.VERSION_CODE)
+        }
+    }
 
     /** Bundles already handled, so a folder rescan does not reinstall them. */
     fun markHandled(key: String) {
@@ -161,6 +189,7 @@ class Prefs private constructor(private val sp: SharedPreferences) {
         private const val KEY_DYNAMIC = "theme_dynamic"
         private const val KEY_AMOLED = "theme_amoled"
         private const val KEY_LANGUAGE = "language"
+        private const val KEY_PREFS_VERSION = "prefs_version"
         private const val KEY_BACKEND = "backend"
         private const val KEY_WATCH = "watch_enabled"
         private const val KEY_AUTO_INSTALL = "auto_install"

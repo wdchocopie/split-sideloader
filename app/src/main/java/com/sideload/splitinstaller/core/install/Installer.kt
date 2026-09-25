@@ -8,6 +8,7 @@ import android.content.pm.PackageInstaller
 import android.os.Build
 import com.sideload.splitinstaller.core.apps.AppExporter
 import com.sideload.splitinstaller.core.bundle.BundleFormat
+import com.sideload.splitinstaller.core.Busy
 import com.sideload.splitinstaller.core.bundle.BundleInfo
 import com.sideload.splitinstaller.core.bundle.BundleInspector
 import com.sideload.splitinstaller.core.bundle.Severity
@@ -85,9 +86,14 @@ class Installer(private val context: Context) {
         request: InstallRequest,
         emit: (InstallEvent) -> Unit,
     ): InstallOutcome = withContext(Dispatchers.IO) {
-        val outcome = runInstall(request, emit)
-        record(request, outcome)
-        outcome
+        Busy.enter()
+        try {
+            val outcome = runInstall(request, emit)
+            record(request, outcome)
+            outcome
+        } finally {
+            Busy.exit()
+        }
     }
 
     private suspend fun runInstall(

@@ -21,6 +21,8 @@ env:
   # Anything else would be refused by Android as an update to installed copies, and by the
   # app's own OTA check.
   EXPECTED_SIGNER_SHA256: a9aeaf964e7e925f51ef933b7aece156b20f9ae45b791a6250461de81ea5ffad
+  # Builds update from the releases of the repository they were built in, forks included.
+  ORG_GRADLE_PROJECT_otaChannel: https://github.com/${{ github.repository }}/releases/latest/download/ota.json
 
 jobs:
   build:

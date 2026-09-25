@@ -182,6 +182,21 @@ https://github.com/wdchocopie/split-sideloader/releases/latest/download/ota.json
 Kênh GitHub chỉ đọc được release của **repo công khai**; repo riêng tư thì API trả 404 cho
 app, vì app không mang theo token nào.
 
+**Bản release đã cài sẵn kênh này** (từ 1.5.1), cùng tự tải và tự cài: cài một lần, từ đó app
+tự cập nhật. Mỗi lần mở (hoặc quay lại) app mà lần kiểm tra trước đã quá 6 giờ thì nó hỏi
+luôn, không chờ lịch nền. Tự tải tôn trọng "Chỉ dùng Wi-Fi": đang dùng dữ liệu di động thì
+chờ Wi-Fi. Một bản đã tải chỉ tải một lần; bản bị từ chối không tự tải lại.
+
+Tự cài (cần Shizuku/root) chỉ diễn ra khi **không có màn hình nào của app đang mở và không có
+lượt cài nào khác đang chạy** — thay app đồng nghĩa với đóng nó, nên không bao giờ cắt ngang
+một lượt cài gói 500 MB. Trong lúc chờ, thẻ ở tab Cài gói cho cài ngay bằng một chạm. Không có
+Shizuku/root thì chạm "Cài ngay" mở màn hình cài bình thường, hệ thống hỏi xác nhận một lần.
+
+Lên 1.5.1 từ 1.5.0: bản 1.5.0 từng lưu kênh rỗng và tắt tự cài như giá trị mặc định mỗi khi
+đổi bất kỳ tùy chọn nào, nên 1.5.1 coi hai giá trị đó là chưa chọn và áp mặc định mới. Từ
+1.5.1, để trống kênh mới đúng là tắt OTA. Bản debug là một package khác nên không có kênh
+nào. Fork repo này thì CI tự trỏ kênh về release của chính fork.
+
 ### Mới trong 1.3 — tự cập nhật
 
 App sideload không tự cập nhật được, nên phải **ghim nguồn** cho từng gói. Trong chi

@@ -55,6 +55,8 @@ import com.sideload.splitinstaller.core.install.Capability
 import com.sideload.splitinstaller.core.install.InstallOutcome
 import com.sideload.splitinstaller.core.Languages
 import com.sideload.splitinstaller.core.log.EventLog
+import com.sideload.splitinstaller.core.ota.OtaChannel
+import com.sideload.splitinstaller.core.ota.OtaState
 import com.sideload.splitinstaller.core.ota.OtaStore
 import com.sideload.splitinstaller.core.update.UpdateWorker
 import com.sideload.splitinstaller.core.verify.InstallVerifier
@@ -181,6 +183,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refreshCapabilities()
+        vm.checkOtaIfStale()
     }
 
     override fun onDestroy() {
@@ -433,8 +436,7 @@ class MainActivity : ComponentActivity() {
                             onToggleWatch = vm::setWatch,
                             onOpenSources = { onTab(Tabs.SOURCES) },
                             onOtaDownload = {
-                                vm.downloadOta()
-                                toast(getString(R.string.download_started))
+                                vm.downloadOta { toast(getString(R.string.download_started)) }
                             },
                             onOtaInstall = vm::installOta,
                             onOtaDismiss = vm::dismissOta,
@@ -449,7 +451,10 @@ class MainActivity : ComponentActivity() {
                             },
                         ),
                         modifier = inner,
-                        ota = ota.takeIf { !otaDismissed },
+                        ota = ota.takeIf { !otaDismissed && OtaChannel.parse(settings.otaChannel).isOn },
+                        otaDownloading = sources.downloads.any {
+                            it.active && !it.waitingForWifi && it.expectedPackage == packageName
+                        },
                     )
                     Tabs.SOURCES -> SourcesScreen(
                         state = sources,
@@ -504,8 +509,7 @@ class MainActivity : ComponentActivity() {
                             onBatteryExempt = ::requestBatteryExemption,
                             onOtaCheck = vm::checkOta,
                             onOtaDownload = {
-                                vm.downloadOta()
-                                toast(getString(R.string.download_started))
+                                vm.downloadOta { toast(getString(R.string.download_started)) }
                             },
                             onOtaInstall = vm::installOta,
                         ),
@@ -553,9 +557,17 @@ class MainActivity : ComponentActivity() {
         // A different language means different resources, so the screen is rebuilt.
         val languageChanged = prefs.language != v.language
         prefs.language = v.language
-        prefs.otaChannel = v.otaChannel
-        prefs.otaAutoDownload = v.otaAutoDownload
-        prefs.otaAutoInstall = v.otaAutoInstall
+        // Only what changed is written, so a build's defaults are never frozen into settings by
+        // an unrelated change.
+        if (v.otaChannel.trim() != prefs.otaChannel) {
+            prefs.otaChannel = v.otaChannel
+            // What the old channel said no longer applies: drop its build, file and transfers,
+            // and ask the new one straight away.
+            OtaStore.retire(this, OtaState.OFF, forgetCheck = true)
+            vm.checkOtaIfStale()
+        }
+        if (v.otaAutoDownload != prefs.otaAutoDownload) prefs.otaAutoDownload = v.otaAutoDownload
+        if (v.otaAutoInstall != prefs.otaAutoInstall) prefs.otaAutoInstall = v.otaAutoInstall
         vm.setBackupFirst(v.backupBeforeUpdate)
         if (languageChanged) recreate()
         // The schedule follows the setting immediately, not at the next launch.
