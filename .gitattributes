@@ -1,0 +1,16 @@
+# Text is stored with LF; each checkout gets its platform's endings.
+* text=auto
+
+# Run by a shell, so LF everywhere, including a Windows checkout used from Git Bash.
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Byte-exact files. The .axml fixtures are compiled binary manifests: a line-ending
+# conversion would silently change what the parser tests read.
+*.png binary
+*.jpg binary
+*.apk binary
+*.jar binary
+*.jks binary
+*.axml binary

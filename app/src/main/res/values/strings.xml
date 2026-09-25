@@ -1,0 +1,512 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Split Sideloader</string>
+    <string name="open_with_label">Install split bundle</string>
+
+    <!-- tabs -->
+    <string name="tab_home">Install</string>
+    <string name="tab_apps">Apps</string>
+    <string name="tab_log">Log</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- notification channels -->
+    <string name="channel_watch">Folder watcher</string>
+    <string name="channel_watch_desc">The ongoing notice shown while download folders are being watched.</string>
+    <string name="channel_events">Install results</string>
+    <string name="channel_events_desc">A bundle was found, installed, or failed.</string>
+    <string name="watch_running">Watching for new bundles</string>
+    <string name="watch_dirs_n">%1$d folder(s)</string>
+    <string name="notif_found_title">Bundle found</string>
+    <string name="notif_done_title">Installed</string>
+    <string name="notif_broken_title">Installed, but broken</string>
+    <string name="notif_failed_title">Install failed</string>
+
+    <!-- home: hero -->
+    <string name="hero_checking">Checking what this device allows…</string>
+    <string name="hero_silent_title">Ready to install silently</string>
+    <string name="hero_via_shizuku">Through Shizuku · no confirmation dialogs</string>
+    <string name="hero_via_root">Through root (su) · no confirmation dialogs</string>
+    <string name="hero_prompt_title">Ready to install</string>
+    <string name="hero_prompt_sub">Each install asks you to confirm</string>
+    <string name="hero_blocked_title">Install permission needed</string>
+    <string name="hero_blocked_sub">Allow this app to install apps, or start Shizuku</string>
+    <string name="hero_storage">%1$s free of %2$s</string>
+    <string name="backend_normal">Normal installer</string>
+    <string name="backend_normal_short">Installer</string>
+    <string name="backend_auto">Automatic (best available)</string>
+    <string name="action_grant">Grant</string>
+    <string name="action_open">Open</string>
+    <string name="action_test">Test</string>
+    <string name="action_recheck">Re-check</string>
+
+    <!-- home: permissions -->
+    <string name="perm_title">Permissions needed</string>
+    <string name="perm_install">Install apps</string>
+    <string name="perm_install_why">Required for the normal installer</string>
+    <string name="perm_files">All files access</string>
+    <string name="perm_files_why">Scan Download, place OBB files, save backups</string>
+    <string name="perm_notif">Notifications</string>
+    <string name="perm_notif_why">Tell you when a bundle arrives or finishes</string>
+
+    <!-- home: actions -->
+    <string name="tile_open_title">Open a bundle</string>
+    <string name="tile_open_sub">XAPK · APKM · APKS</string>
+    <string name="tile_scan_title">Scan folders</string>
+    <string name="tile_scan_sub">Download · Documents</string>
+    <string name="watch_title">Watch download folders</string>
+    <string name="watch_desc_off">Off. Turn on to react when a new bundle lands.</string>
+    <string name="watch_desc_silent">New bundles install on their own.</string>
+    <string name="watch_desc_prompt">New bundles raise a notification.</string>
+    <string name="watch_pill_auto_on">Auto-install on</string>
+    <string name="watch_pill_auto_off">Notify only</string>
+    <string name="watch_pill_silent">Silent method ready</string>
+    <string name="watch_pill_notify">Needs confirmation</string>
+    <string name="section_found">In your downloads (%1$d)</string>
+    <string name="found_none">No bundles found in the download folders.</string>
+    <string name="section_recent">Recent installs</string>
+    <string name="history_repair">repair</string>
+    <string name="history_cleared">Install history cleared</string>
+    <string name="not_installed_now">That app is no longer installed</string>
+    <string name="status_failed">Failed</string>
+    <string name="status_broken">Broken</string>
+    <string name="status_attention">Check</string>
+    <string name="status_working">Working</string>
+    <string name="status_installed">Installed</string>
+    <string name="reading_bundle">Reading the bundle…</string>
+    <string name="reading_bundle_body">Parsing every APK\'s manifest and signature in place. Nothing is unpacked.</string>
+
+    <!-- bundle -->
+    <string name="action_back">Back</string>
+    <string name="section_checks">Checks</string>
+    <string name="section_splits">APKs in this bundle (%1$d)</string>
+    <string name="action_auto_select">Pick for this device</string>
+    <string name="action_select_all">Select all</string>
+    <string name="section_selection_problems">This selection will not work</string>
+    <string name="section_obb">Expansion files (%1$d)</string>
+    <string name="pill_apks">%1$d APK</string>
+    <string name="none_native">no native code</string>
+    <string name="name_guessed">guessed from name</string>
+    <string name="kind_base">Base</string>
+    <string name="kind_abi">Native code (ABI)</string>
+    <string name="kind_density">Screen density</string>
+    <string name="kind_locale">Languages</string>
+    <string name="kind_feature">Feature modules and asset packs</string>
+    <string name="kind_standalone">Standalone APKs</string>
+    <string name="kind_unknown">Unclassified</string>
+
+    <string name="version_title">Version</string>
+    <string name="version_installed">Installed</string>
+    <string name="version_bundle">In this bundle</string>
+    <string name="version_new">New install</string>
+    <string name="version_upgrade">Upgrade</string>
+    <string name="version_downgrade">Downgrade</string>
+    <string name="version_same">Same build</string>
+    <string name="version_unknown">Version unknown</string>
+    <string name="downgrade_warning">Production Android only allows downgrades for debuggable apps. Expect to uninstall first, which deletes the app\'s data.</string>
+
+    <string name="sig_title">Signature</string>
+    <string name="sig_match">Same signer as the installed copy</string>
+    <string name="sig_mismatch">Different signer from the installed copy</string>
+    <string name="sig_mismatch_body">The update will fail with INSTALL_FAILED_UPDATE_INCOMPATIBLE. Either this bundle was repacked and re-signed, or it is a different build channel. Uninstalling first works but deletes the app\'s data.</string>
+    <string name="sig_inconsistent">APKs are signed by %1$d different certificates — the bundle was repacked</string>
+    <string name="sig_consistent">All %1$d APKs share one certificate</string>
+    <string name="sig_unreadable">Signature could not be read in place</string>
+    <string name="label_signer">Signer</string>
+    <string name="label_installed_signer">Installed signer</string>
+
+    <string name="repair_title">Repair without losing data</string>
+    <string name="repair_body">The installed copy is this exact build but is missing splits. Adding them is the same as adb install-multiple -p: app data stays, and the package manager rescans the native libraries.</string>
+    <string name="action_repair">Add missing splits</string>
+
+    <string name="opt_backup">Back up before updating</string>
+    <string name="opt_backup_desc">Save the installed copy as .apks in Download/SplitSideloader first, so a bad update can be rolled back.</string>
+
+    <string name="bar_summary">%1$d APK · %2$s</string>
+    <string name="bar_via_shizuku">Through Shizuku, silently</string>
+    <string name="bar_via_root">Through root, silently</string>
+    <string name="bar_via_normal">System installer · asks to confirm</string>
+    <string name="bar_no_backend">No install method is ready</string>
+    <string name="action_install">Install</string>
+    <string name="bar_preparing">Preparing…</string>
+    <string name="bar_committing">Committing the session…</string>
+    <string name="bar_backup">Backing up the installed copy…</string>
+    <string name="bar_installing_hint">Streaming straight from the bundle and checking every checksum</string>
+    <string name="bar_repairing_hint">Adding the missing splits to the installed copy</string>
+    <string name="bar_done">Installed</string>
+    <string name="bar_repaired">Repaired</string>
+    <string name="bar_done_broken">Installed, but broken</string>
+    <string name="bar_done_sub">Checked: the verdict is above</string>
+    <string name="bar_backup_saved">Previous version backed up to Download/SplitSideloader</string>
+    <string name="action_launch">Open app</string>
+    <string name="action_reverify">Check again</string>
+    <string name="action_retry">Try again</string>
+    <string name="result_failed">Install failed</string>
+    <string name="action_uninstall_retry">Uninstall, then install</string>
+    <string name="uninstall_retry_warning">This removes the existing app and its data. Sign in to an account first if your progress lives on a server.</string>
+
+    <!-- verification -->
+    <string name="verdict_ok_title">Working install</string>
+    <string name="verdict_warn_title">Needs a look</string>
+    <string name="verdict_broken_title">Broken install</string>
+    <string name="verdict_absent">Not installed</string>
+    <string name="verdict_unknown">State unknown</string>
+    <string name="verdict_ok_body">Native libraries are registered for this device. It should launch.</string>
+    <string name="verdict_ok_nonnative">No native code involved, so there is nothing to go missing.</string>
+    <string name="label_native_libs">Native libs</string>
+    <string name="label_splits">Splits</string>
+    <string name="card_native">Native libraries</string>
+    <string name="label_read_via">Read via</string>
+    <string name="label_apk_abis">In the APKs</string>
+    <string name="label_engine">Engine</string>
+    <string name="extract_yes">yes — extracted to the lib folder</string>
+    <string name="extract_no">no — loaded from inside the APK</string>
+    <string name="card_installed_apks">Installed APKs (%1$d)</string>
+    <string name="unreadable">unreadable</string>
+
+    <!-- apps -->
+    <string name="apps_rescan">Scan again</string>
+    <string name="apps_scan">Scan installed apps</string>
+    <string name="apps_scanning">Checking installed apps…</string>
+    <string name="apps_empty_title">Find broken installs</string>
+    <string name="apps_empty_body">Checks every installed app for the store-client failure: a base APK without its ABI split, which shows the right version and then dies at launch with a missing .so.</string>
+    <string name="apps_none_title">Nothing matches</string>
+    <string name="apps_none_body">Try another filter or search term.</string>
+    <string name="apps_search">Search by name or package</string>
+    <string name="action_clear">Clear</string>
+    <string name="stat_apps">Apps</string>
+    <string name="stat_split">Split installs</string>
+    <string name="stat_attention">Need attention</string>
+    <string name="apps_banner_title">%1$d app(s) need attention</string>
+    <string name="apps_banner_body">Tap to see only those. Broken ones will fail at launch.</string>
+    <string name="filter_all">All</string>
+    <string name="filter_attention">Attention (%1$d)</string>
+    <string name="filter_split">Split (%1$d)</string>
+    <string name="filter_risky">Risky source (%1$d)</string>
+    <string name="filter_system">System apps</string>
+    <string name="pill_splits">%1$d split</string>
+    <string name="pill_from">from %1$s</string>
+    <string name="pill_system">System</string>
+    <string name="risky_installer_body">Installed by %1$s. That client has been seen dropping the ABI split from bundles that install fine on their own. Install bundles yourself, and consider revoking its install permission when you are not using it.</string>
+    <string name="action_diagnose">Diagnose launch</string>
+    <string name="needs_shell">needs Shizuku or root</string>
+    <string name="action_backup">Back up .apks</string>
+    <string name="action_repair_with_bundle">Repair with a bundle…</string>
+    <string name="action_app_info">App info</string>
+    <string name="action_uninstall">Uninstall</string>
+    <string name="card_info">Details</string>
+    <string name="label_installer">Installed by</string>
+    <string name="label_first_install">First installed</string>
+    <string name="label_last_update">Last updated</string>
+    <string name="label_total_size">APK size</string>
+    <string name="card_backup">Backup</string>
+    <string name="backup_running">Writing the .apks bundle…</string>
+    <string name="backup_done">Saved. Install it with this app like any other bundle.</string>
+    <string name="label_saved_to">Saved to</string>
+    <string name="card_diagnosis">Launch diagnosis</string>
+    <string name="diagnosis_running">Opening the app and reading the log for 10 seconds…</string>
+    <string name="diag_missing_lib">Missing native library</string>
+    <string name="diag_missing_lib_body">The app looked for a .so and it was not there — the ABI split never made it in. Reinstall with every split, or use \"Repair with a bundle\".</string>
+    <string name="diag_anticheat">Anti-cheat refused to start</string>
+    <string name="diag_anticheat_body">The libraries loaded, but the anti-cheat module would not initialise. Root, Magisk, hooks and app cloners trigger this. Reinstalling will not change it.</string>
+    <string name="diag_native_crash">Native crash</string>
+    <string name="diag_native_crash_body">The libraries loaded and then crashed (a signal such as SIGSEGV). Usually a build or GPU-driver problem, not an install problem.</string>
+    <string name="diag_java_crash">Java crash</string>
+    <string name="diag_java_crash_body">An uncaught exception. The stack trace is below.</string>
+    <string name="diag_none">Nothing suspicious</string>
+    <string name="diag_none_body">No errors in the first 10 seconds. If the app still closes, run this again and watch for longer.</string>
+    <string name="diag_no_launcher">No launcher screen</string>
+    <string name="diag_no_launcher_body">This package has nothing to open directly.</string>
+    <string name="diag_shell_failed">Could not run the diagnosis</string>
+    <string name="diag_shell_failed_body">The shell did not respond. Check that Shizuku or root is still granted.</string>
+
+    <!-- log -->
+    <string name="action_share_log">Share log</string>
+    <string name="action_clear_log">Clear log</string>
+    <string name="log_empty">The log is empty.</string>
+    <string name="log_all">All (%1$d)</string>
+    <string name="log_warnings">Warnings (%1$d)</string>
+    <string name="log_errors">Errors (%1$d)</string>
+    <string name="log_empty_title">Nothing here yet</string>
+    <string name="log_empty_body">Every install, scan and check writes here, so a failure can be read back later.</string>
+
+    <!-- settings -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme_title">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_dynamic">Dynamic colour</string>
+    <string name="theme_dynamic_desc">Take colours from the wallpaper (Material You)</string>
+    <string name="theme_dynamic_unsupported">Needs Android 12 or later</string>
+    <string name="theme_amoled">Pure black</string>
+    <string name="theme_amoled_desc">True black backgrounds in dark mode, for OLED screens</string>
+    <string name="settings_backend">Install method</string>
+    <string name="settings_backend_desc">Uses the best method that is ready right now</string>
+    <string name="state_ready">Ready</string>
+    <string name="state_needs_action">Action needed</string>
+    <string name="state_unavailable">Unavailable</string>
+    <string name="settings_install">When installing</string>
+    <string name="opt_verify">Verify checksums</string>
+    <string name="opt_verify_desc">Compare every APK with the CRC in the archive. Catches a damaged download before it installs.</string>
+    <string name="opt_obb">Install expansion files</string>
+    <string name="opt_obb_desc">Copy OBB data into Android/obb after the APKs.</string>
+    <string name="opt_grant_all">Grant all permissions</string>
+    <string name="opt_grant_all_desc">Pre-grant every runtime permission the app declares.</string>
+    <string name="opt_downgrade">Allow downgrade</string>
+    <string name="opt_downgrade_desc">Only honoured for debuggable apps on production Android.</string>
+    <string name="settings_watch">Automation</string>
+    <string name="opt_auto_install">Install detected bundles</string>
+    <string name="opt_auto_install_desc">When a bundle lands in a watched folder, install it without asking.</string>
+    <string name="opt_updates_only">Updates only</string>
+    <string name="opt_updates_only_desc">Auto-install only for apps already on the device. New apps just notify.</string>
+    <string name="auto_install_needs_silent">Auto-install needs Shizuku or root. Without one, every install stops at a confirmation dialog.</string>
+    <string name="section_device">This device</string>
+    <string name="label_model">Model</string>
+    <string name="label_android">Android</string>
+    <string name="label_abis">ABIs</string>
+    <string name="label_density">Density</string>
+    <string name="label_free_data">Free on /data</string>
+    <string name="label_all_files">All files access</string>
+    <string name="label_su">su binary</string>
+    <string name="yes">granted</string>
+    <string name="no">not granted</string>
+    <string name="settings_shizuku_help">Starting Shizuku from Termux</string>
+    <string name="shizuku_help_body">Without root, Shizuku has to be started over ADB after every reboot. Turn on Wireless debugging, then run these in Termux. The pairing screen and the main screen show different ports.</string>
+    <string name="shizuku_help_note">Pairing usually persists; the connect port changes whenever Wireless debugging is toggled or the device reboots.</string>
+    <string name="action_copy">Copy commands</string>
+    <string name="copied">Copied</string>
+    <string name="settings_about">About</string>
+    <string name="about_body">Installs .xapk, .apkm and .apks bundles on-device with every split in one transaction, then checks that the native libraries actually registered.</string>
+    <string name="action_clear_history">Clear history</string>
+    <string name="shizuku_request_failed">Could not ask Shizuku for permission. Is the service running?</string>
+    <string name="shizuku_not_installed">Shizuku is not installed.</string>
+    <string name="no_launcher_activity">This app has no launcher screen.</string>
+
+    <!-- findings (the core logs these in English; the UI shows these) -->
+    <string name="f_no_base">There is no base APK in this bundle.</string>
+    <string name="f_abi_mismatch">The native code is for %1$s, but this device runs %2$s. It will not start.</string>
+    <string name="f_engine_no_libs">A %1$s app, but the bundle has no lib/&lt;abi&gt;/ at all. It is base-only and will crash at launch with a missing .so. Get a complete bundle.</string>
+    <string name="f_no_libs">No lib/&lt;abi&gt;/ anywhere in this bundle. If the app uses native code, this download is base-only and will fail at launch.</string>
+    <string name="f_signers_differ">The APKs are signed by %1$s different certificates. The bundle was repacked, and the installer rejects splits whose signers disagree.</string>
+    <string name="f_min_sdk">Needs Android API %1$s; this device is API %2$s.</string>
+    <string name="f_pkg_disagree">The APKs disagree on the package name: %1$s</string>
+    <string name="f_version_disagree">The splits disagree on versionCode (%1$s). The installer will reject them.</string>
+    <string name="f_guessed">Some APKs could not be read in place; their roles were guessed from file names.</string>
+    <string name="f_sel_no_base">No base APK is selected, so the install cannot start.</string>
+    <string name="f_sel_abi_deselected">The ABI split for this device is deselected. The app would install, show the right version, and crash at launch with a missing .so.</string>
+    <string name="f_sel_abi_unsupported">The bundle only has native code for %1$s; this device is %2$s.</string>
+    <string name="f_not_installed">%1$s is not installed.</string>
+    <string name="f_wrong_abi">The installed native code is for %1$s, but this device runs %2$s. The app cannot load its libraries.</string>
+    <string name="f_no_native">No installed APK contains lib/&lt;abi&gt;/ and primaryCpuAbi is null. The ABI split was never installed: this fails at launch with \"dlopen failed … not found\", whatever the version says.</string>
+    <string name="f_no_native_engine">A %1$s app with no lib/&lt;abi&gt;/ in any installed APK, and primaryCpuAbi is null. The ABI split was never installed: this fails at launch with \"dlopen failed … not found\", whatever the version says.</string>
+    <string name="f_dumpsys_null">dumpsys reports primaryCpuAbi=null: no native library path was registered.</string>
+    <string name="f_unreadable">Could not read the installed APKs or primaryCpuAbi, so the state is unknown.</string>
+    <string name="f_native_ok">Native code for %1$s is installed.</string>
+    <string name="f_not_extracted">extractNativeLibs is on but the lib folder is empty: the libraries were not extracted. Reinstalling usually fixes this.</string>
+    <string name="f_abi_unsupported">Installed for %1$s, which this device cannot run.</string>
+    <string name="f_no_native_expected">No native code expected, so there is nothing ABI-related to check.</string>
+    <string name="f_base_only">The manifest declares required splits but only base.apk is installed. Every split was dropped, which is exactly what store clients do.</string>
+    <string name="f_splits_missing">Splits missing after the install: %1$s</string>
+
+    <!-- why a split was picked -->
+    <string name="note_base">base, always installed</string>
+    <string name="note_standalone">the standalone that fits this device</string>
+    <string name="note_abi">native libraries for %1$s</string>
+    <string name="note_density">matches this %1$s dpi screen</string>
+    <string name="note_density_any">density-independent</string>
+    <string name="note_language">language: %1$s</string>
+    <string name="note_language_fallback">fallback language</string>
+    <string name="note_feature">feature module or asset pack</string>
+    <string name="note_unclassified">unclassified, kept to be safe</string>
+
+    <!-- install methods -->
+    <string name="cap_shizuku_grant">Running, permission not granted</string>
+    <string name="cap_shizuku_off">Service not running</string>
+    <string name="cap_root_ready">Granted</string>
+    <string name="cap_root_untested">su found, not tested yet</string>
+    <string name="cap_root_none">No su binary</string>
+    <string name="cap_pi_ready">One system prompt per install</string>
+    <string name="cap_pi_grant">Install permission not granted</string>
+
+    <!-- what to do about a failure -->
+    <string name="hint_missing_split">A partial install of this package is already on the device. Uninstall it, then install the full bundle in one go.</string>
+    <string name="hint_update_incompatible">The signer does not match the installed copy: a repack or a different build channel. Uninstall the existing copy, or get the bundle from a source that re-hosts it verbatim.</string>
+    <string name="hint_downgrade">Older than what is installed. Production Android only allows that for debuggable apps, so uninstall first.</string>
+    <string name="hint_storage">Not enough free space for the install itself.</string>
+    <string name="hint_no_abis">The selected APKs carry no native code this device can run.</string>
+    <string name="hint_parse">An APK would not parse. The download is probably truncated, so download it again.</string>
+    <string name="hint_invalid">An APK was rejected as invalid, which usually means a truncated or repacked file.</string>
+    <string name="hint_corrupt">The bundle file itself is damaged. Delete it and download it again; do not install it.</string>
+    <string name="hint_backup">Free some space or turn off \"Back up before updating\", then try again.</string>
+    <string name="hint_repair_version">Splits from a different build cannot be merged. Install the full bundle instead.</string>
+    <string name="hint_uninstall">Remove the app from Settings, then install this bundle again.</string>
+    <string name="hint_shell">Is the Shizuku service still running?</string>
+
+    <!-- sources and downloads -->
+    <string name="tab_sources">Sources</string>
+    <string name="home_sources_title">Search and download</string>
+    <string name="home_sources_sub">APKMirror · APKPure · F-Droid · GitHub</string>
+    <string name="sources_search_hint">Search for an app</string>
+    <string name="sources_search_on">Search on %1$s</string>
+    <string name="sources_open_on">Open %1$s</string>
+    <string name="sources_how">Opens the site\'s own pages. Tap its download button and the file comes straight here, then opens for installing with every check.</string>
+    <string name="section_downloads">Downloads</string>
+    <string name="section_sources">Sources</string>
+    <string name="trust_verbatim">original files, not repacked</string>
+    <string name="trust_files_only">files are fine; skip their installer app</string>
+    <string name="trust_foss">open-source builds</string>
+    <string name="trust_custom">added by you</string>
+    <string name="action_add_source">Add a source</string>
+    <string name="add_source_title">Add a source</string>
+    <string name="add_source_name">Name</string>
+    <string name="add_source_home">Home page</string>
+    <string name="add_source_search">Search URL, {q} marks the query (optional)</string>
+    <string name="add_source_invalid">Needs a name and https:// addresses. A search URL must contain {q}.</string>
+    <string name="action_add">Add</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_remove">Remove</string>
+    <string name="sources_tips_title">Picking a source</string>
+    <string name="sources_tip_1">On APKMirror, go through the publisher\'s page rather than search results, and pick the BUNDLE for arm64-v8a + nodpi.</string>
+    <string name="sources_tip_2">Avoid generic \"APK download\" mirrors: they repack and re-sign, which breaks signature checks and anti-cheat. The signature card shows it before you install.</string>
+    <string name="sources_tip_3">A small download is not a stripped repack: thin-client games fetch their data after the first launch.</string>
+    <string name="download_pending">Waiting…</string>
+    <string name="download_progress">%1$s of %2$s</string>
+    <string name="download_paused">Paused, waiting for the network</string>
+    <string name="download_done">Downloaded · %1$s</string>
+    <string name="download_failed">Failed (%1$s)</string>
+    <string name="download_failed_hint">The site refused the download outside its own page. Open it in your browser instead: the file lands in Download, and this app finds it there.</string>
+    <string name="download_started">Download started</string>
+    <string name="download_done_toast">Downloaded %1$s. Open it from the Sources tab.</string>
+    <string name="action_install_short">Install</string>
+    <string name="action_open_external">Open in browser</string>
+    <string name="action_cancel_download">Cancel download</string>
+    <string name="action_forget">Remove from list</string>
+    <string name="action_find_update">Find a newer version</string>
+    <string name="browser_reload">Reload</string>
+    <string name="browser_close">Close</string>
+    <string name="notif_downloaded_title">Downloaded — tap to install</string>
+    <string name="notif_download_failed_title">Download failed</string>
+
+    <!-- updates -->
+    <string name="settings_updates">Updates</string>
+    <string name="card_update">Updates</string>
+    <string name="updates_check_all">Check for updates</string>
+    <string name="updates_checking">Asking the pinned sources…</string>
+    <string name="updates_banner_body">Tap to see only those.</string>
+    <string name="filter_updates">Updates (%1$d)</string>
+    <plurals name="updates_available">
+        <item quantity="one">1 update</item>
+        <item quantity="other">%1$d updates</item>
+    </plurals>
+    <plurals name="notif_updates_title">
+        <item quantity="one">1 update available</item>
+        <item quantity="other">%1$d updates available</item>
+    </plurals>
+    <string name="notif_updates_more">%1$s and %2$d more</string>
+    <plurals name="notif_manual_title">
+        <item quantity="one">1 app to check yourself</item>
+        <item quantity="other">%1$d apps to check yourself</item>
+    </plurals>
+    <string name="notif_manual_body">%1$s is pinned to a page the app cannot read a version from. Tap to open it.</string>
+    <string name="notif_shizuku_gone_title">Shizuku is not running</string>
+    <string name="notif_shizuku_gone_body">It does not survive a reboot on an unrooted device, so updates can download but not install themselves. Start it again from Termux — the command is in Settings.</string>
+    <string name="notif_installing">Installing an update…</string>
+    <string name="notif_update_ready_title">Update downloaded — tap to install</string>
+    <string name="notif_updated_title">Updated</string>
+
+    <string name="pin_fdroid">F-Droid</string>
+    <string name="pin_github">GitHub</string>
+    <string name="pin_web">Web page</string>
+    <string name="pin_title">Where do updates come from?</string>
+    <string name="pin_body">F-Droid and GitHub publish versions for machines to read, so those are checked on their own. A pinned page is opened for you instead.</string>
+    <string name="pin_fdroid_desc">Checks and downloads by itself</string>
+    <string name="pin_github_desc">Latest release of a repository, checked and downloaded by itself</string>
+    <string name="pin_web_desc">Find the app\'s page on a source and pin it; the app reminds you and opens it</string>
+    <string name="pin_github_field">Repository or URL</string>
+    <string name="pin_fdroid_missing">F-Droid does not have this package.</string>
+    <string name="pin_github_invalid">Needs an owner/repo or a github.com link.</string>
+    <string name="pin_confirm">Pin</string>
+
+    <string name="update_no_pin">No source yet. Sideloaded apps cannot update themselves, so the app has to be told where to look.</string>
+    <string name="update_set_source">Set an update source</string>
+    <string name="label_update_source">Source</string>
+    <string name="update_available">New version: %1$s → %2$s</string>
+    <string name="update_download">Download</string>
+    <string name="update_current">Up to date (%1$s)</string>
+    <string name="update_manual">This source has no version API. Open the page to check.</string>
+    <string name="update_unknown">Found %1$s, but the versions could not be compared.</string>
+    <string name="update_error">Check failed: %1$s</string>
+    <string name="update_not_checked">Not checked yet.</string>
+    <string name="update_checked_at">Checked %1$s</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_open_page">Open page</string>
+    <string name="update_change_source">Change</string>
+    <string name="update_unpin">Unpin</string>
+
+    <string name="updates_interval_title">Check pinned sources</string>
+    <string name="updates_off">Off</string>
+    <string name="updates_daily">Daily</string>
+    <string name="updates_weekly">Weekly</string>
+    <string name="updates_wifi_only">Wi-Fi only</string>
+    <string name="updates_wifi_only_desc">Check and download on unmetered networks only.</string>
+    <string name="updates_auto_download">Download updates</string>
+    <string name="updates_auto_download_desc">For F-Droid and GitHub, which publish a direct file. A pinned page always needs your tap.</string>
+    <string name="updates_auto_install">Install downloads</string>
+    <string name="updates_auto_install_desc">Install a downloaded bundle without asking, then verify it. Applies to anything you download in the app.</string>
+    <string name="updates_needs_silent">Needs Shizuku or root. Without one, Android requires a confirmation for every install, so downloads will wait in a notification.</string>
+    <string name="updates_battery_warning">Battery optimisation is on for this app, so the system may skip background checks entirely.</string>
+    <string name="updates_battery_action">Allow background work</string>
+    <string name="updates_explainer">APKMirror and APKPure have no version API and their robots policy rules out machine downloads, so those stay a reminder plus one tap.</string>
+
+    <string name="browser_pin_title">Pin this page for %1$s</string>
+    <string name="browser_pin_action">Pin</string>
+    <string name="browser_pinned">Pinned as the update source</string>
+
+    <!-- OTA: this app updating itself -->
+    <string name="ota_section">This app</string>
+    <string name="ota_installed">Installed</string>
+    <string name="ota_channel_label">Update channel</string>
+    <string name="ota_channel_hint">owner/repo or https://…/ota.json</string>
+    <string name="ota_channel_github">GitHub releases. The app picks the asset for this device’s ABI.</string>
+    <string name="ota_channel_manifest">A JSON manifest. Its format is in the README; <tt>gradlew otaManifest</tt> writes one for each build.</string>
+    <string name="ota_channel_off">Empty, so this app does not look for its own updates. A repo, a github.com link, or an https URL turns it on; plain http is refused.</string>
+    <string name="ota_auto_download">Download new builds</string>
+    <string name="ota_auto_download_desc">Fetch the file as soon as the channel has a newer one.</string>
+    <string name="ota_auto_install">Replace this app by itself</string>
+    <string name="ota_auto_install_desc">Install the downloaded build without asking. The app closes while it happens.</string>
+    <string name="ota_needs_silent">Needs Shizuku or root. Without one, the build is downloaded and checked, then waits for your tap.</string>
+    <string name="ota_check_now">Check now</string>
+    <string name="ota_download">Download</string>
+    <string name="ota_install_now">Install now</string>
+    <string name="ota_later">Later</string>
+    <string name="ota_installing">Installing a new build of this app…</string>
+    <string name="ota_state_update">%1$s is out</string>
+    <string name="ota_state_ready">%1$s is downloaded and checked</string>
+    <string name="ota_state_current">This is the newest build on the channel.</string>
+    <string name="ota_state_unknown">Found %1$s, but the versions could not be compared. Downloading it is still safe: the file is checked before anything is installed.</string>
+    <string name="ota_state_error">Check failed: %1$s</string>
+    <string name="ota_attempt_failed">The last self-install did not take. The app will not retry on its own — install it yourself once to see the error.</string>
+    <string name="ota_card_title">Split Sideloader %1$s is out</string>
+    <string name="ota_card_from">You are running %1$s.</string>
+    <string name="ota_needs_tap">Checked and ready. Without Shizuku or root, Android needs one tap to replace a running app.</string>
+    <string name="ota_explainer">Any build must be this package, carry a higher versionCode, and be signed by the same key as the copy running — otherwise it is refused before it is installed, whatever the channel said.</string>
+    <string name="ota_notif_title">A new build of Split Sideloader</string>
+    <string name="ota_notif_body">%1$s is on the update channel.</string>
+    <string name="ota_ready_title">New build ready — tap to install</string>
+    <string name="ota_ready_body">%1$s is downloaded and checked.</string>
+    <string name="ota_refused_title">The downloaded build was refused</string>
+    <string name="ota_failed_title">This app could not update itself</string>
+    <string name="ota_p_wrong_package">the file is a different app</string>
+    <string name="ota_p_not_newer">the file is not newer than the copy running</string>
+    <string name="ota_p_signer_mismatch">the file is signed by a different key, so Android would refuse it as an update</string>
+    <string name="ota_p_signer_unknown">the file’s signature could not be read</string>
+    <string name="ota_p_digest_mismatch">the file does not match the SHA-256 the channel published</string>
+    <string name="ota_p_unreadable">the file could not be read as an APK</string>
+
+    <!-- the app's own language -->
+    <string name="language_title">Language</string>
+    <string name="language_system">System</string>
+    <string name="language_vi">Tiếng Việt</string>
+    <string name="language_en">English</string>
+    <string name="language_desc">Applies to this app only, whatever the phone is set to. Log lines stay English so they can be pasted into a bug report.</string>
+</resources>

@@ -1,0 +1,26 @@
+# Local toolchain and build output
+.tools/
+.gradle/
+.kotlin/
+build/
+local.properties
+
+# The signing key. It is the one thing an OTA update is checked against, so it never
+# goes into the repository: CI gets it from the repository's secrets instead.
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pk8
+*.pem
+*.pfx
+
+# Built APKs at the top level; releases carry them. Test fixtures under app/src/test stay.
+/*.apk
+
+# IDE
+*.iml
+.idea/
+.vscode/
+captures/
+.DS_Store

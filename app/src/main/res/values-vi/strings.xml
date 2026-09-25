@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="open_with_label">Cài gói split</string>
+
+    <!-- tabs -->
+    <string name="tab_home">Cài gói</string>
+    <string name="tab_apps">Ứng dụng</string>
+    <string name="tab_log">Nhật ký</string>
+    <string name="tab_settings">Tùy chọn</string>
+
+    <!-- notification channels -->
+    <string name="channel_watch">Theo dõi thư mục</string>
+    <string name="channel_watch_desc">Thông báo thường trực khi đang theo dõi thư mục tải về.</string>
+    <string name="channel_events">Kết quả cài đặt</string>
+    <string name="channel_events_desc">Tìm thấy gói, cài xong, hoặc cài thất bại.</string>
+    <string name="watch_running">Đang theo dõi gói mới</string>
+    <string name="watch_dirs_n">%1$d thư mục</string>
+    <string name="notif_found_title">Tìm thấy gói mới</string>
+    <string name="notif_done_title">Đã cài xong</string>
+    <string name="notif_broken_title">Đã cài, nhưng hỏng</string>
+    <string name="notif_failed_title">Cài thất bại</string>
+
+    <!-- home: hero -->
+    <string name="hero_checking">Đang kiểm tra máy cho phép những gì…</string>
+    <string name="hero_silent_title">Sẵn sàng cài im lặng</string>
+    <string name="hero_via_shizuku">Qua Shizuku · không hộp thoại xác nhận</string>
+    <string name="hero_via_root">Qua root (su) · không hộp thoại xác nhận</string>
+    <string name="hero_prompt_title">Sẵn sàng cài</string>
+    <string name="hero_prompt_sub">Mỗi lần cài cần bạn xác nhận</string>
+    <string name="hero_blocked_title">Cần quyền cài ứng dụng</string>
+    <string name="hero_blocked_sub">Cho phép ứng dụng này cài gói, hoặc bật Shizuku</string>
+    <string name="hero_storage">Trống %1$s / %2$s</string>
+    <string name="backend_normal">Trình cài thường</string>
+    <string name="backend_normal_short">Trình cài</string>
+    <string name="backend_auto">Tự động (chọn cái tốt nhất)</string>
+    <string name="action_grant">Cấp quyền</string>
+    <string name="action_open">Mở</string>
+    <string name="action_test">Thử</string>
+    <string name="action_recheck">Kiểm tra lại</string>
+
+    <!-- home: permissions -->
+    <string name="perm_title">Cần cấp quyền</string>
+    <string name="perm_install">Cài ứng dụng</string>
+    <string name="perm_install_why">Bắt buộc với trình cài thường</string>
+    <string name="perm_files">Truy cập mọi tệp</string>
+    <string name="perm_files_why">Quét Download, đặt OBB, lưu bản sao lưu</string>
+    <string name="perm_notif">Thông báo</string>
+    <string name="perm_notif_why">Báo khi có gói mới hoặc khi cài xong</string>
+
+    <!-- home: actions -->
+    <string name="tile_open_title">Mở tệp gói</string>
+    <string name="tile_open_sub">XAPK · APKM · APKS</string>
+    <string name="tile_scan_title">Quét thư mục</string>
+    <string name="tile_scan_sub">Download · Documents</string>
+    <string name="watch_title">Theo dõi thư mục tải về</string>
+    <string name="watch_desc_off">Đang tắt. Bật lên để tự xử lý khi có gói mới.</string>
+    <string name="watch_desc_silent">Gói mới sẽ tự được cài.</string>
+    <string name="watch_desc_prompt">Gói mới sẽ hiện thông báo.</string>
+    <string name="watch_pill_auto_on">Tự cài: bật</string>
+    <string name="watch_pill_auto_off">Chỉ thông báo</string>
+    <string name="watch_pill_silent">Đã có cách cài im lặng</string>
+    <string name="watch_pill_notify">Cần xác nhận</string>
+    <string name="section_found">Trong thư mục tải về (%1$d)</string>
+    <string name="found_none">Không thấy gói nào trong thư mục tải về.</string>
+    <string name="section_recent">Cài gần đây</string>
+    <string name="history_repair">sửa</string>
+    <string name="history_cleared">Đã xóa lịch sử cài</string>
+    <string name="not_installed_now">Ứng dụng này không còn trên máy</string>
+    <string name="status_failed">Thất bại</string>
+    <string name="status_broken">Hỏng</string>
+    <string name="status_attention">Cần xem</string>
+    <string name="status_working">Chạy được</string>
+    <string name="status_installed">Đã cài</string>
+    <string name="reading_bundle">Đang đọc gói…</string>
+    <string name="reading_bundle_body">Đọc manifest và chữ ký của từng APK ngay trong gói. Không giải nén gì cả.</string>
+
+    <!-- bundle -->
+    <string name="action_back">Quay lại</string>
+    <string name="section_checks">Kiểm tra</string>
+    <string name="section_splits">Các APK trong gói (%1$d)</string>
+    <string name="action_auto_select">Chọn theo máy này</string>
+    <string name="action_select_all">Chọn tất cả</string>
+    <string name="section_selection_problems">Lựa chọn này sẽ không chạy</string>
+    <string name="section_obb">Tệp mở rộng (%1$d)</string>
+    <string name="pill_apks">%1$d APK</string>
+    <string name="none_native">không có mã máy</string>
+    <string name="name_guessed">đoán theo tên</string>
+    <string name="kind_base">Gói nền</string>
+    <string name="kind_abi">Mã máy (ABI)</string>
+    <string name="kind_density">Mật độ màn hình</string>
+    <string name="kind_locale">Ngôn ngữ</string>
+    <string name="kind_feature">Mô-đun tính năng và gói tài nguyên</string>
+    <string name="kind_standalone">APK độc lập</string>
+    <string name="kind_unknown">Chưa phân loại</string>
+
+    <string name="version_title">Phiên bản</string>
+    <string name="version_installed">Đang cài</string>
+    <string name="version_bundle">Trong gói</string>
+    <string name="version_new">Cài mới</string>
+    <string name="version_upgrade">Nâng cấp</string>
+    <string name="version_downgrade">Hạ cấp</string>
+    <string name="version_same">Cùng bản build</string>
+    <string name="version_unknown">Không rõ phiên bản</string>
+    <string name="downgrade_warning">Android bản thương mại chỉ cho hạ cấp app debuggable. Gần như chắc chắn phải gỡ bản cũ trước — việc đó xóa dữ liệu của app.</string>
+
+    <string name="sig_title">Chữ ký</string>
+    <string name="sig_match">Cùng người ký với bản đang cài</string>
+    <string name="sig_mismatch">Khác người ký với bản đang cài</string>
+    <string name="sig_mismatch_body">Cập nhật sẽ lỗi INSTALL_FAILED_UPDATE_INCOMPATIBLE. Gói này đã bị đóng gói và ký lại, hoặc là kênh phát hành khác. Gỡ bản cũ trước thì cài được, nhưng mất dữ liệu app.</string>
+    <string name="sig_inconsistent">Các APK được ký bởi %1$d chứng chỉ khác nhau — gói đã bị đóng gói lại</string>
+    <string name="sig_consistent">Cả %1$d APK dùng chung một chứng chỉ</string>
+    <string name="sig_unreadable">Không đọc được chữ ký ngay trong gói</string>
+    <string name="label_signer">Người ký</string>
+    <string name="label_installed_signer">Người ký bản đang cài</string>
+
+    <string name="repair_title">Sửa mà không mất dữ liệu</string>
+    <string name="repair_body">Bản đang cài đúng là bản build này nhưng thiếu split. Thêm chúng vào giống hệt lệnh adb install-multiple -p: giữ nguyên dữ liệu app, và trình quản lý gói sẽ quét lại thư viện native.</string>
+    <string name="action_repair">Thêm các split còn thiếu</string>
+
+    <string name="opt_backup">Sao lưu trước khi cập nhật</string>
+    <string name="opt_backup_desc">Lưu bản đang cài thành .apks vào Download/SplitSideloader trước, để có thể quay lại nếu bản mới lỗi.</string>
+
+    <string name="bar_summary">%1$d APK · %2$s</string>
+    <string name="bar_via_shizuku">Qua Shizuku, im lặng</string>
+    <string name="bar_via_root">Qua root, im lặng</string>
+    <string name="bar_via_normal">Trình cài hệ thống · cần xác nhận</string>
+    <string name="bar_no_backend">Chưa có cách cài nào sẵn sàng</string>
+    <string name="action_install">Cài đặt</string>
+    <string name="bar_preparing">Đang chuẩn bị…</string>
+    <string name="bar_committing">Đang hoàn tất phiên cài…</string>
+    <string name="bar_backup">Đang sao lưu bản đang cài…</string>
+    <string name="bar_installing_hint">Ghi thẳng từ gói và kiểm tra từng checksum</string>
+    <string name="bar_repairing_hint">Đang thêm các split còn thiếu vào bản đang cài</string>
+    <string name="bar_done">Đã cài xong</string>
+    <string name="bar_repaired">Đã sửa xong</string>
+    <string name="bar_done_broken">Đã cài, nhưng hỏng</string>
+    <string name="bar_done_sub">Đã kiểm chứng, xem kết quả ở trên</string>
+    <string name="bar_backup_saved">Bản cũ đã được sao lưu vào Download/SplitSideloader</string>
+    <string name="action_launch">Mở ứng dụng</string>
+    <string name="action_reverify">Kiểm tra lại</string>
+    <string name="action_retry">Thử lại</string>
+    <string name="result_failed">Cài thất bại</string>
+    <string name="action_uninstall_retry">Gỡ rồi cài lại</string>
+    <string name="uninstall_retry_warning">Thao tác này xóa cả ứng dụng lẫn dữ liệu của nó. Hãy đăng nhập tài khoản trước nếu tiến trình của bạn lưu trên máy chủ.</string>
+
+    <!-- verification -->
+    <string name="verdict_ok_title">Bản cài hoạt động</string>
+    <string name="verdict_warn_title">Cần xem lại</string>
+    <string name="verdict_broken_title">Bản cài hỏng</string>
+    <string name="verdict_absent">Chưa được cài</string>
+    <string name="verdict_unknown">Không rõ trạng thái</string>
+    <string name="verdict_ok_body">Thư viện native đã được đăng ký cho máy này. App sẽ mở được.</string>
+    <string name="verdict_ok_nonnative">App không dùng mã máy, nên không có gì để thiếu.</string>
+    <string name="label_native_libs">Thư viện</string>
+    <string name="label_splits">Split</string>
+    <string name="card_native">Thư viện native</string>
+    <string name="label_read_via">Đọc bằng</string>
+    <string name="label_apk_abis">Có trong APK</string>
+    <string name="label_engine">Engine</string>
+    <string name="extract_yes">có — giải nén ra thư mục lib</string>
+    <string name="extract_no">không — nạp trực tiếp từ trong APK</string>
+    <string name="card_installed_apks">APK đã cài (%1$d)</string>
+    <string name="unreadable">không đọc được</string>
+
+    <!-- apps -->
+    <string name="apps_rescan">Quét lại</string>
+    <string name="apps_scan">Quét ứng dụng đã cài</string>
+    <string name="apps_scanning">Đang kiểm tra ứng dụng đã cài…</string>
+    <string name="apps_empty_title">Tìm bản cài hỏng</string>
+    <string name="apps_empty_body">Kiểm tra mọi ứng dụng đã cài để tìm đúng lỗi của các store client: chỉ có APK nền mà thiếu split ABI — hiện đúng phiên bản, rồi crash khi mở vì thiếu .so.</string>
+    <string name="apps_none_title">Không có gì khớp</string>
+    <string name="apps_none_body">Thử bộ lọc hoặc từ khóa khác.</string>
+    <string name="apps_search">Tìm theo tên hoặc tên gói</string>
+    <string name="action_clear">Xóa</string>
+    <string name="stat_apps">Ứng dụng</string>
+    <string name="stat_split">Cài dạng split</string>
+    <string name="stat_attention">Cần chú ý</string>
+    <string name="apps_banner_title">%1$d ứng dụng cần chú ý</string>
+    <string name="apps_banner_body">Chạm để chỉ xem những app đó. App hỏng sẽ crash khi mở.</string>
+    <string name="filter_all">Tất cả</string>
+    <string name="filter_attention">Cần chú ý (%1$d)</string>
+    <string name="filter_split">Có split (%1$d)</string>
+    <string name="filter_risky">Nguồn rủi ro (%1$d)</string>
+    <string name="filter_system">App hệ thống</string>
+    <string name="pill_splits">%1$d split</string>
+    <string name="pill_from">từ %1$s</string>
+    <string name="pill_system">Hệ thống</string>
+    <string name="risky_installer_body">Được cài bởi %1$s. Trình cài này từng bị ghi nhận làm rơi split ABI của những gói vốn cài bình thường. Hãy tự cài gói, và nên tắt quyền cài ứng dụng của nó khi không dùng.</string>
+    <string name="action_diagnose">Chẩn đoán khởi chạy</string>
+    <string name="needs_shell">cần Shizuku hoặc root</string>
+    <string name="action_backup">Sao lưu .apks</string>
+    <string name="action_repair_with_bundle">Sửa bằng gói…</string>
+    <string name="action_app_info">Thông tin ứng dụng</string>
+    <string name="action_uninstall">Gỡ cài đặt</string>
+    <string name="card_info">Chi tiết</string>
+    <string name="label_installer">Cài bởi</string>
+    <string name="label_first_install">Cài lần đầu</string>
+    <string name="label_last_update">Cập nhật lần cuối</string>
+    <string name="label_total_size">Dung lượng APK</string>
+    <string name="card_backup">Sao lưu</string>
+    <string name="backup_running">Đang ghi gói .apks…</string>
+    <string name="backup_done">Đã lưu. Cài lại bằng ứng dụng này như mọi gói khác.</string>
+    <string name="label_saved_to">Lưu tại</string>
+    <string name="card_diagnosis">Chẩn đoán khởi chạy</string>
+    <string name="diagnosis_running">Đang mở ứng dụng và đọc logcat trong 10 giây…</string>
+    <string name="diag_missing_lib">Thiếu thư viện native</string>
+    <string name="diag_missing_lib_body">App tìm một tệp .so và không thấy — split ABI chưa từng được cài vào. Cài lại đủ split, hoặc dùng \"Sửa bằng gói\".</string>
+    <string name="diag_anticheat">Anti-cheat từ chối chạy</string>
+    <string name="diag_anticheat_body">Thư viện đã nạp, nhưng module chống gian lận không chịu khởi tạo. Root, Magisk, hook và app nhân bản đều gây ra việc này. Cài lại không thay đổi được gì.</string>
+    <string name="diag_native_crash">Crash native</string>
+    <string name="diag_native_crash_body">Thư viện đã nạp rồi crash (tín hiệu kiểu SIGSEGV). Thường là lỗi bản build hoặc driver GPU, không phải lỗi cài đặt.</string>
+    <string name="diag_java_crash">Crash Java</string>
+    <string name="diag_java_crash_body">Một exception không được xử lý. Stack trace ở bên dưới.</string>
+    <string name="diag_none">Không thấy gì đáng ngờ</string>
+    <string name="diag_none_body">Không có lỗi trong 10 giây đầu. Nếu app vẫn tự tắt, chạy lại và theo dõi lâu hơn.</string>
+    <string name="diag_no_launcher">Không có màn hình khởi chạy</string>
+    <string name="diag_no_launcher_body">Gói này không có gì để mở trực tiếp.</string>
+    <string name="diag_shell_failed">Không chạy được chẩn đoán</string>
+    <string name="diag_shell_failed_body">Shell không phản hồi. Kiểm tra xem Shizuku hoặc root còn được cấp quyền không.</string>
+
+    <!-- log -->
+    <string name="action_share_log">Chia sẻ nhật ký</string>
+    <string name="action_clear_log">Xóa nhật ký</string>
+    <string name="log_empty">Nhật ký trống.</string>
+    <string name="log_all">Tất cả (%1$d)</string>
+    <string name="log_warnings">Cảnh báo (%1$d)</string>
+    <string name="log_errors">Lỗi (%1$d)</string>
+    <string name="log_empty_title">Chưa có gì</string>
+    <string name="log_empty_body">Mọi lần cài, quét và kiểm tra đều ghi vào đây, để khi có lỗi thì đọc lại được.</string>
+
+    <!-- settings -->
+    <string name="settings_appearance">Giao diện</string>
+    <string name="theme_title">Chủ đề</string>
+    <string name="theme_system">Hệ thống</string>
+    <string name="theme_light">Sáng</string>
+    <string name="theme_dark">Tối</string>
+    <string name="theme_dynamic">Màu động</string>
+    <string name="theme_dynamic_desc">Lấy màu theo hình nền (Material You)</string>
+    <string name="theme_dynamic_unsupported">Cần Android 12 trở lên</string>
+    <string name="theme_amoled">Đen tuyền</string>
+    <string name="theme_amoled_desc">Nền đen tuyệt đối ở chế độ tối, hợp màn OLED</string>
+    <string name="settings_backend">Cách cài</string>
+    <string name="settings_backend_desc">Dùng cách tốt nhất đang sẵn sàng</string>
+    <string name="state_ready">Sẵn sàng</string>
+    <string name="state_needs_action">Cần thao tác</string>
+    <string name="state_unavailable">Không có</string>
+    <string name="settings_install">Khi cài</string>
+    <string name="opt_verify">Kiểm tra checksum</string>
+    <string name="opt_verify_desc">So từng APK với CRC ghi trong gói. Bắt được bản tải hỏng trước khi nó kịp cài vào.</string>
+    <string name="opt_obb">Cài tệp mở rộng</string>
+    <string name="opt_obb_desc">Chép dữ liệu OBB vào Android/obb sau khi cài xong các APK.</string>
+    <string name="opt_grant_all">Cấp sẵn mọi quyền</string>
+    <string name="opt_grant_all_desc">Cấp trước toàn bộ quyền runtime mà ứng dụng khai báo.</string>
+    <string name="opt_downgrade">Cho phép hạ cấp</string>
+    <string name="opt_downgrade_desc">Android bản thương mại chỉ chấp nhận với app debuggable.</string>
+    <string name="settings_watch">Tự động hóa</string>
+    <string name="opt_auto_install">Cài luôn gói phát hiện được</string>
+    <string name="opt_auto_install_desc">Khi có gói mới rơi vào thư mục đang theo dõi thì cài luôn, không hỏi.</string>
+    <string name="opt_updates_only">Chỉ bản cập nhật</string>
+    <string name="opt_updates_only_desc">Chỉ tự cài cho app đã có trên máy. App mới thì chỉ thông báo.</string>
+    <string name="auto_install_needs_silent">Cài tự động cần Shizuku hoặc root. Không có chúng, mọi lần cài đều dừng ở hộp thoại xác nhận.</string>
+    <string name="section_device">Máy này</string>
+    <string name="label_model">Kiểu máy</string>
+    <string name="label_android">Android</string>
+    <string name="label_abis">ABI</string>
+    <string name="label_density">Mật độ màn hình</string>
+    <string name="label_free_data">Trống trên /data</string>
+    <string name="label_all_files">Truy cập mọi tệp</string>
+    <string name="label_su">Tệp su</string>
+    <string name="yes">đã cấp</string>
+    <string name="no">chưa cấp</string>
+    <string name="settings_shizuku_help">Khởi động Shizuku từ Termux</string>
+    <string name="shizuku_help_body">Không có root thì Shizuku phải được khởi động qua ADB sau mỗi lần khởi động lại máy. Bật Gỡ lỗi không dây, rồi chạy các lệnh này trong Termux. Màn hình ghép nối và màn hình chính hiện hai cổng KHÁC NHAU.</string>
+    <string name="shizuku_help_note">Ghép nối thường được giữ lại; nhưng cổng kết nối đổi mỗi khi bạn tắt bật Gỡ lỗi không dây hoặc khởi động lại máy.</string>
+    <string name="action_copy">Sao chép lệnh</string>
+    <string name="copied">Đã sao chép</string>
+    <string name="settings_about">Giới thiệu</string>
+    <string name="about_body">Cài gói .xapk, .apkm và .apks ngay trên máy, đưa mọi split vào chung một phiên, rồi kiểm tra xem thư viện native có thực sự được đăng ký hay không.</string>
+    <string name="action_clear_history">Xóa lịch sử</string>
+    <string name="shizuku_request_failed">Không xin được quyền từ Shizuku. Dịch vụ có đang chạy không?</string>
+    <string name="shizuku_not_installed">Chưa cài Shizuku.</string>
+    <string name="no_launcher_activity">Ứng dụng này không có màn hình khởi chạy.</string>
+
+    <!-- findings -->
+    <string name="f_no_base">Gói này không có APK nền.</string>
+    <string name="f_abi_mismatch">Mã máy trong gói dành cho %1$s, nhưng máy này chạy %2$s. App sẽ không mở được.</string>
+    <string name="f_engine_no_libs">App %1$s nhưng gói không có lib/&lt;abi&gt;/ nào. Đây là gói chỉ có APK nền, sẽ crash khi mở vì thiếu .so. Hãy tải gói đầy đủ.</string>
+    <string name="f_no_libs">Không có lib/&lt;abi&gt;/ nào trong gói. Nếu app dùng mã máy thì đây là bản chỉ có APK nền và sẽ lỗi khi mở.</string>
+    <string name="f_signers_differ">Các APK được ký bởi %1$s chứng chỉ khác nhau. Gói đã bị đóng gói lại, và trình cài sẽ từ chối các split lệch chữ ký.</string>
+    <string name="f_min_sdk">Cần Android API %1$s; máy này là API %2$s.</string>
+    <string name="f_pkg_disagree">Các APK không cùng tên gói: %1$s</string>
+    <string name="f_version_disagree">Các split lệch versionCode (%1$s). Trình cài sẽ từ chối.</string>
+    <string name="f_guessed">Một số APK không đọc trực tiếp được; vai trò của chúng được đoán theo tên tệp.</string>
+    <string name="f_sel_no_base">Chưa chọn APK nền nên không thể bắt đầu cài.</string>
+    <string name="f_sel_abi_deselected">Split ABI của máy này đang bị bỏ chọn. App sẽ cài được, hiện đúng phiên bản, rồi crash khi mở vì thiếu .so.</string>
+    <string name="f_sel_abi_unsupported">Gói chỉ có mã máy cho %1$s; máy này là %2$s.</string>
+    <string name="f_not_installed">%1$s chưa được cài.</string>
+    <string name="f_wrong_abi">Mã máy đã cài dành cho %1$s, nhưng máy chạy %2$s. App không nạp được thư viện.</string>
+    <string name="f_no_native">Không APK nào đã cài có lib/&lt;abi&gt;/, và primaryCpuAbi = null. Split ABI chưa từng được cài: app sẽ lỗi \"dlopen failed … not found\" khi mở, dù phiên bản hiện đúng.</string>
+    <string name="f_no_native_engine">App %1$s nhưng không APK nào đã cài có lib/&lt;abi&gt;/, và primaryCpuAbi = null. Split ABI chưa từng được cài: app sẽ lỗi \"dlopen failed … not found\" khi mở, dù phiên bản hiện đúng.</string>
+    <string name="f_dumpsys_null">dumpsys báo primaryCpuAbi=null: không có đường dẫn thư viện native nào được đăng ký.</string>
+    <string name="f_unreadable">Không đọc được APK đã cài hay primaryCpuAbi, nên chưa rõ trạng thái.</string>
+    <string name="f_native_ok">Mã máy cho %1$s đã được cài.</string>
+    <string name="f_not_extracted">extractNativeLibs đang bật nhưng thư mục lib trống: thư viện chưa được giải nén. Cài lại thường sẽ khắc phục.</string>
+    <string name="f_abi_unsupported">Được cài cho %1$s, loại mà máy này không chạy được.</string>
+    <string name="f_no_native_expected">App không cần mã máy, nên không có gì liên quan ABI để kiểm tra.</string>
+    <string name="f_base_only">Manifest khai báo cần split nhưng chỉ có base.apk được cài. Mọi split đã bị bỏ — đúng lỗi của các store client.</string>
+    <string name="f_splits_missing">Thiếu split sau khi cài: %1$s</string>
+
+    <!-- why a split was picked -->
+    <string name="note_base">gói nền, luôn được cài</string>
+    <string name="note_standalone">bản độc lập hợp với máy này</string>
+    <string name="note_abi">thư viện native cho %1$s</string>
+    <string name="note_density">khớp màn hình %1$s dpi</string>
+    <string name="note_density_any">không phụ thuộc mật độ</string>
+    <string name="note_language">ngôn ngữ: %1$s</string>
+    <string name="note_language_fallback">ngôn ngữ dự phòng</string>
+    <string name="note_feature">mô-đun tính năng hoặc gói tài nguyên</string>
+    <string name="note_unclassified">chưa phân loại, giữ lại cho chắc</string>
+
+    <!-- install methods -->
+    <string name="cap_shizuku_grant">Đang chạy, chưa cấp quyền</string>
+    <string name="cap_shizuku_off">Dịch vụ chưa chạy</string>
+    <string name="cap_root_ready">Đã cấp quyền</string>
+    <string name="cap_root_untested">Có su, chưa thử</string>
+    <string name="cap_root_none">Không có su</string>
+    <string name="cap_pi_ready">Mỗi lần cài hiện một hộp thoại</string>
+    <string name="cap_pi_grant">Chưa cấp quyền cài ứng dụng</string>
+
+    <!-- what to do about a failure -->
+    <string name="hint_missing_split">Máy đang có một bản cài dở của gói này. Gỡ nó đi, rồi cài cả gói đầy đủ trong một lần.</string>
+    <string name="hint_update_incompatible">Chữ ký không khớp bản đang cài: gói bị đóng gói lại hoặc khác kênh phát hành. Gỡ bản cũ, hoặc lấy gói từ nguồn phát hành lại nguyên bản.</string>
+    <string name="hint_downgrade">Cũ hơn bản đang cài. Android thương mại chỉ cho phép với app debuggable, nên hãy gỡ bản cũ trước.</string>
+    <string name="hint_storage">Không đủ dung lượng trống để cài.</string>
+    <string name="hint_no_abis">Các APK đã chọn không có mã máy nào máy này chạy được.</string>
+    <string name="hint_parse">Có APK không phân tích được. Nhiều khả năng tệp tải về bị thiếu, hãy tải lại.</string>
+    <string name="hint_invalid">Có APK bị từ chối vì không hợp lệ, thường do tệp bị thiếu hoặc bị đóng gói lại.</string>
+    <string name="hint_corrupt">Chính tệp gói đã bị hỏng. Xóa đi và tải lại; đừng cài nó.</string>
+    <string name="hint_backup">Giải phóng dung lượng hoặc tắt \"Sao lưu trước khi cập nhật\", rồi thử lại.</string>
+    <string name="hint_repair_version">Không thể ghép split của bản build khác. Hãy cài cả gói đầy đủ.</string>
+    <string name="hint_uninstall">Gỡ app trong Cài đặt, rồi cài lại gói này.</string>
+    <string name="hint_shell">Dịch vụ Shizuku có còn chạy không?</string>
+
+    <!-- sources and downloads -->
+    <string name="tab_sources">Nguồn</string>
+    <string name="home_sources_title">Tìm và tải gói</string>
+    <string name="home_sources_sub">APKMirror · APKPure · F-Droid · GitHub</string>
+    <string name="sources_search_hint">Tìm ứng dụng</string>
+    <string name="sources_search_on">Tìm trên %1$s</string>
+    <string name="sources_open_on">Mở %1$s</string>
+    <string name="sources_how">Mở đúng trang của nguồn. Bấm nút tải của họ là file về thẳng đây, rồi tự mở để cài, qua đủ mọi bước kiểm tra.</string>
+    <string name="section_downloads">Tải về</string>
+    <string name="section_sources">Nguồn</string>
+    <string name="trust_verbatim">file gốc, không đóng gói lại</string>
+    <string name="trust_files_only">tải file được; đừng cài bằng app của họ</string>
+    <string name="trust_foss">bản build mã nguồn mở</string>
+    <string name="trust_custom">bạn tự thêm</string>
+    <string name="action_add_source">Thêm nguồn</string>
+    <string name="add_source_title">Thêm nguồn</string>
+    <string name="add_source_name">Tên</string>
+    <string name="add_source_home">Trang chủ</string>
+    <string name="add_source_search">URL tìm kiếm, {q} là chỗ từ khóa (không bắt buộc)</string>
+    <string name="add_source_invalid">Cần có tên và địa chỉ https://. URL tìm kiếm phải chứa {q}.</string>
+    <string name="action_add">Thêm</string>
+    <string name="action_cancel">Hủy</string>
+    <string name="action_remove">Xóa</string>
+    <string name="sources_tips_title">Chọn nguồn thế nào</string>
+    <string name="sources_tip_1">Trên APKMirror, đi qua trang của nhà phát hành thay vì kết quả tìm kiếm, và chọn bản BUNDLE cho arm64-v8a + nodpi.</string>
+    <string name="sources_tip_2">Tránh các trang \"tải APK\" chung chung: chúng đóng gói và ký lại, làm hỏng kiểm tra chữ ký và anti-cheat. Thẻ chữ ký sẽ cho bạn thấy trước khi cài.</string>
+    <string name="sources_tip_3">Tải về nhỏ không có nghĩa là bản bị cắt xén: game thin-client tải dữ liệu sau lần mở đầu.</string>
+    <string name="download_pending">Đang chờ…</string>
+    <string name="download_progress">%1$s / %2$s</string>
+    <string name="download_paused">Tạm dừng, đang chờ mạng</string>
+    <string name="download_done">Đã tải xong · %1$s</string>
+    <string name="download_failed">Thất bại (%1$s)</string>
+    <string name="download_failed_hint">Trang từ chối tải bên ngoài trang của họ. Mở bằng trình duyệt thay thế: file sẽ về thư mục Download, và app sẽ tìm thấy nó ở đó.</string>
+    <string name="download_started">Đã bắt đầu tải</string>
+    <string name="download_done_toast">Đã tải xong %1$s. Mở từ tab Nguồn.</string>
+    <string name="action_install_short">Cài</string>
+    <string name="action_open_external">Mở bằng trình duyệt</string>
+    <string name="action_cancel_download">Hủy tải</string>
+    <string name="action_forget">Xóa khỏi danh sách</string>
+    <string name="action_find_update">Tìm bản mới</string>
+    <string name="browser_reload">Tải lại</string>
+    <string name="browser_close">Đóng</string>
+    <string name="notif_downloaded_title">Đã tải xong — chạm để cài</string>
+    <string name="notif_download_failed_title">Tải thất bại</string>
+
+    <!-- updates -->
+    <string name="settings_updates">Cập nhật</string>
+    <string name="card_update">Cập nhật</string>
+    <string name="updates_check_all">Kiểm tra cập nhật</string>
+    <string name="updates_checking">Đang hỏi các nguồn đã ghim…</string>
+    <string name="updates_banner_body">Chạm để chỉ xem những app đó.</string>
+    <string name="filter_updates">Có bản mới (%1$d)</string>
+    <plurals name="updates_available">
+        <item quantity="other">%1$d bản cập nhật</item>
+    </plurals>
+    <plurals name="notif_updates_title">
+        <item quantity="other">Có %1$d bản cập nhật</item>
+    </plurals>
+    <string name="notif_updates_more">%1$s và %2$d app khác</string>
+    <plurals name="notif_manual_title">
+        <item quantity="other">%1$d app cần bạn tự kiểm tra</item>
+    </plurals>
+    <string name="notif_manual_body">%1$s đang ghim một trang mà app không đọc được phiên bản. Chạm để mở trang đó.</string>
+    <string name="notif_shizuku_gone_title">Shizuku chưa chạy</string>
+    <string name="notif_shizuku_gone_body">Máy không root thì Shizuku tắt sau mỗi lần khởi động lại, nên bản cập nhật tải được nhưng không tự cài được. Khởi động lại nó từ Termux — lệnh nằm trong tab Tùy chọn.</string>
+    <string name="notif_installing">Đang cài bản cập nhật…</string>
+    <string name="notif_update_ready_title">Đã tải bản mới — chạm để cài</string>
+    <string name="notif_updated_title">Đã cập nhật</string>
+
+    <string name="pin_fdroid">F-Droid</string>
+    <string name="pin_github">GitHub</string>
+    <string name="pin_web">Trang web</string>
+    <string name="pin_title">Lấy bản cập nhật từ đâu?</string>
+    <string name="pin_body">F-Droid và GitHub công bố phiên bản cho máy đọc, nên hai nguồn này tự kiểm tra được. Còn trang web đã ghim thì app sẽ mở ra cho bạn.</string>
+    <string name="pin_fdroid_desc">Tự kiểm tra và tự tải</string>
+    <string name="pin_github_desc">Bản phát hành mới nhất của một repo, tự kiểm tra và tự tải</string>
+    <string name="pin_web_desc">Tìm trang của app trên một nguồn rồi ghim lại; app sẽ nhắc và mở trang đó</string>
+    <string name="pin_github_field">Repo hoặc URL</string>
+    <string name="pin_fdroid_missing">F-Droid không có gói này.</string>
+    <string name="pin_github_invalid">Cần dạng owner/repo hoặc một link github.com.</string>
+    <string name="pin_confirm">Ghim</string>
+
+    <string name="update_no_pin">Chưa có nguồn. App sideload không tự cập nhật được, nên phải chỉ cho app biết chỗ để tìm.</string>
+    <string name="update_set_source">Đặt nguồn cập nhật</string>
+    <string name="label_update_source">Nguồn</string>
+    <string name="update_available">Có bản mới: %1$s → %2$s</string>
+    <string name="update_download">Tải về</string>
+    <string name="update_current">Đang là bản mới nhất (%1$s)</string>
+    <string name="update_manual">Nguồn này không có API phiên bản. Mở trang để tự kiểm tra.</string>
+    <string name="update_unknown">Thấy bản %1$s, nhưng không so sánh được phiên bản.</string>
+    <string name="update_error">Kiểm tra thất bại: %1$s</string>
+    <string name="update_not_checked">Chưa kiểm tra lần nào.</string>
+    <string name="update_checked_at">Kiểm tra %1$s</string>
+    <string name="update_check_now">Kiểm tra ngay</string>
+    <string name="update_open_page">Mở trang</string>
+    <string name="update_change_source">Đổi nguồn</string>
+    <string name="update_unpin">Bỏ ghim</string>
+
+    <string name="updates_interval_title">Kiểm tra các nguồn đã ghim</string>
+    <string name="updates_off">Tắt</string>
+    <string name="updates_daily">Hằng ngày</string>
+    <string name="updates_weekly">Hằng tuần</string>
+    <string name="updates_wifi_only">Chỉ dùng Wi-Fi</string>
+    <string name="updates_wifi_only_desc">Chỉ kiểm tra và tải khi mạng không tính dung lượng.</string>
+    <string name="updates_auto_download">Tự tải bản cập nhật</string>
+    <string name="updates_auto_download_desc">Áp dụng cho F-Droid và GitHub, vốn có link file trực tiếp. Trang web đã ghim thì luôn cần bạn bấm tải.</string>
+    <string name="updates_auto_install">Tự cài file đã tải</string>
+    <string name="updates_auto_install_desc">Cài gói vừa tải mà không hỏi, rồi kiểm chứng. Áp dụng cho mọi file bạn tải trong app.</string>
+    <string name="updates_needs_silent">Cần Shizuku hoặc root. Không có thì Android bắt xác nhận từng lần cài, nên file tải xong sẽ nằm chờ ở thông báo.</string>
+    <string name="updates_battery_warning">App đang bị tối ưu pin, hệ thống có thể bỏ qua hoàn toàn việc kiểm tra nền.</string>
+    <string name="updates_battery_action">Cho phép chạy nền</string>
+    <string name="updates_explainer">APKMirror và APKPure không có API phiên bản, và chính sách robots của họ không cho máy tự tải, nên hai nguồn này dừng ở mức nhắc bạn rồi mở trang.</string>
+
+    <string name="browser_pin_title">Ghim trang này cho %1$s</string>
+    <string name="browser_pin_action">Ghim</string>
+    <string name="browser_pinned">Đã ghim làm nguồn cập nhật</string>
+
+    <!-- OTA: app tự cập nhật chính nó -->
+    <string name="ota_section">Ứng dụng này</string>
+    <string name="ota_installed">Đang cài</string>
+    <string name="ota_channel_label">Kênh cập nhật</string>
+    <string name="ota_channel_hint">owner/repo hoặc https://…/ota.json</string>
+    <string name="ota_channel_github">GitHub Releases. App tự chọn file đúng ABI của máy.</string>
+    <string name="ota_channel_manifest">Một file JSON. Định dạng xem trong README; lệnh <tt>gradlew otaManifest</tt> sinh sẵn cho mỗi bản build.</string>
+    <string name="ota_channel_off">Đang trống, nên app không tự tìm bản mới của chính nó. Điền repo, link github.com hoặc URL https là bật; http thuần thì app từ chối.</string>
+    <string name="ota_auto_download">Tự tải bản mới</string>
+    <string name="ota_auto_download_desc">Có bản mới trên kênh là tải luôn.</string>
+    <string name="ota_auto_install">Tự cài đè lên chính nó</string>
+    <string name="ota_auto_install_desc">Cài bản vừa tải mà không hỏi. App sẽ tắt trong lúc đó.</string>
+    <string name="ota_needs_silent">Cần Shizuku hoặc root. Không có thì bản mới vẫn được tải và kiểm, rồi nằm chờ bạn bấm.</string>
+    <string name="ota_check_now">Kiểm tra ngay</string>
+    <string name="ota_download">Tải về</string>
+    <string name="ota_install_now">Cài ngay</string>
+    <string name="ota_later">Để sau</string>
+    <string name="ota_installing">Đang cài bản mới của chính app…</string>
+    <string name="ota_state_update">Đã có bản %1$s</string>
+    <string name="ota_state_ready">Đã tải và kiểm xong bản %1$s</string>
+    <string name="ota_state_current">Đây đã là bản mới nhất trên kênh.</string>
+    <string name="ota_state_unknown">Thấy bản %1$s nhưng không so được phiên bản. Tải về vẫn an toàn: file luôn bị kiểm trước khi cài.</string>
+    <string name="ota_state_error">Kiểm tra thất bại: %1$s</string>
+    <string name="ota_attempt_failed">Lần tự cài trước không thành. App sẽ không tự thử lại — bấm cài tay một lần để xem lỗi.</string>
+    <string name="ota_card_title">Đã có Split Sideloader %1$s</string>
+    <string name="ota_card_from">Bản đang chạy là %1$s.</string>
+    <string name="ota_needs_tap">Đã kiểm xong. Không có Shizuku hay root thì Android cần bạn bấm một lần để thay app đang chạy.</string>
+    <string name="ota_explainer">Bản nào cũng phải đúng gói này, có versionCode cao hơn, và ký cùng khóa với bản đang chạy — không thì bị từ chối trước khi cài, dù kênh nói gì.</string>
+    <string name="ota_notif_title">Có bản Split Sideloader mới</string>
+    <string name="ota_notif_body">Kênh cập nhật đang có bản %1$s.</string>
+    <string name="ota_ready_title">Đã tải bản mới — chạm để cài</string>
+    <string name="ota_ready_body">Bản %1$s đã tải và kiểm xong.</string>
+    <string name="ota_refused_title">Bản vừa tải bị từ chối</string>
+    <string name="ota_failed_title">App không tự cập nhật được</string>
+    <string name="ota_p_wrong_package">file là một app khác</string>
+    <string name="ota_p_not_newer">file không mới hơn bản đang chạy</string>
+    <string name="ota_p_signer_mismatch">file ký bằng khóa khác, Android sẽ từ chối nó như bản cập nhật</string>
+    <string name="ota_p_signer_unknown">không đọc được chữ ký của file</string>
+    <string name="ota_p_digest_mismatch">file không khớp SHA-256 mà kênh công bố</string>
+    <string name="ota_p_unreadable">không đọc được file này như một APK</string>
+
+    <!-- ngôn ngữ của riêng app -->
+    <string name="language_title">Ngôn ngữ</string>
+    <string name="language_system">Hệ thống</string>
+    <string name="language_vi">Tiếng Việt</string>
+    <string name="language_en">English</string>
+    <string name="language_desc">Chỉ áp dụng cho app này, không phụ thuộc ngôn ngữ máy. Nhật ký vẫn giữ tiếng Anh để dán vào báo lỗi còn đọc được.</string>
+</resources>

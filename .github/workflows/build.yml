@@ -1,0 +1,147 @@
+name: Build
+
+# Pushes to main and pull requests are built and tested. A tag vX.Y.Z also publishes a
+# release carrying the signed APK and the ota.json the app's OTA channel reads.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  # The certificate every release must be signed with. A fingerprint is public; the key is not.
+  # Anything else would be refused by Android as an update to installed copies, and by the
+  # app's own OTA check.
+  EXPECTED_SIGNER_SHA256: a9aeaf964e7e925f51ef933b7aece156b20f9ae45b791a6250461de81ea5ffad
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Read the version
+        id: version
+        run: |
+          name=$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)
+          code=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Building $name ($code)"
+
+      - name: A release tag must match the version in the build
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          if [ "$GITHUB_REF_NAME" != "v${{ steps.version.outputs.name }}" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match versionName ${{ steps.version.outputs.name }}"
+            exit 1
+          fi
+
+      - name: Unit tests and screen renders
+        run: ./gradlew --no-daemon :app:testDebugUnitTest
+
+      # The reference images were recorded on Windows; font rasterising can differ by a few
+      # pixels on Linux, so a mismatch is reported with its images rather than failing the build.
+      - name: Compare screens with the recorded ones
+        id: screens
+        continue-on-error: true
+        run: ./gradlew --no-daemon :app:verifyPaparazziDebug
+
+      - name: Keep the screen differences
+        if: steps.screens.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: screen-differences
+          path: app/build/paparazzi/failures/
+          if-no-files-found: ignore
+
+      - name: Restore the signing key
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::no signing secrets; the APK is built unsigned and nothing is released"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build the signed APK and its OTA manifest
+        if: steps.signing.outputs.signed == 'true'
+        run: |
+          ./gradlew --no-daemon :app:otaManifest \
+            -PotaBaseUrl="https://github.com/$GITHUB_REPOSITORY/releases/download/v${{ steps.version.outputs.name }}"
+
+      - name: Build an unsigned APK
+        if: steps.signing.outputs.signed != 'true'
+        run: ./gradlew --no-daemon :app:assembleRelease
+
+      - name: Check the signer
+        if: steps.signing.outputs.signed == 'true'
+        run: |
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          actual=$("$tools/apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          if [ "$actual" != "$EXPECTED_SIGNER_SHA256" ]; then
+            echo "::error::signed by $actual, expected $EXPECTED_SIGNER_SHA256"
+            exit 1
+          fi
+          echo "signer ok: $actual"
+
+      - name: Collect the output
+        run: |
+          mkdir -p out
+          name=${{ steps.version.outputs.name }}
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
+            cp app/build/outputs/apk/release/app-release.apk "out/SplitSideloader-$name.apk"
+            cp app/build/outputs/apk/release/ota.json out/ota.json
+          else
+            cp app/build/outputs/apk/release/app-release-unsigned.apk "out/SplitSideloader-$name-unsigned.apk"
+          fi
+          ls -la out
+          rm -f keystore.properties "$RUNNER_TEMP/release.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SplitSideloader-${{ steps.version.outputs.name }}
+          path: out/
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.signing.outputs.signed }}" != "true" ]; then
+            echo "::error::refusing to publish an unsigned release; set the signing secrets first"
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" out/* \
+            --title "Split Sideloader ${{ steps.version.outputs.name }}" \
+            --generate-notes
