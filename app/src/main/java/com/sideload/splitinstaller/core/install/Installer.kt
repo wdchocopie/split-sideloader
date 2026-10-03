@@ -53,6 +53,9 @@ data class InstallRequest(
 sealed interface InstallEvent {
     data class Log(val severity: Severity, val message: String) : InstallEvent
     data class Progress(val fraction: Float, val label: String) : InstallEvent
+
+    /** The system's confirmation dialog for this install; it can be shown again if it was left. */
+    data class AwaitingConfirmation(val confirm: Intent) : InstallEvent
 }
 
 sealed interface InstallOutcome {
@@ -323,6 +326,7 @@ class Installer(private val context: Context) {
                             ?: return InstallOutcome.Failed("the system asked for confirmation but sent no dialog")
                         emit(InstallEvent.Log(Severity.INFO, "waiting for the system confirmation dialog"))
                         confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        emit(InstallEvent.AwaitingConfirmation(Intent(confirm)))
                         runCatching { context.startActivity(confirm) }
                             .onFailure { return InstallOutcome.Failed("could not show the confirmation dialog: ${it.message}") }
                     }

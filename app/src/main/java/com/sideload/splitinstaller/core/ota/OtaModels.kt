@@ -97,16 +97,30 @@ data class OtaStatus(
     val fileSourceUrl: String? = null,
     /** versionCode of the last install this app started on itself. */
     val attemptedVersion: Long = 0,
+    /**
+     * That attempt went through the system's confirmation dialog. Leaving the dialog
+     * unanswered is not a failed install, so it never counts toward giving up.
+     */
+    val attemptViaDialog: Boolean = false,
     val attemptFailures: Int = 0,
     /** [OtaRelease.identity] of a build whose file failed the checks; not fetched again by itself. */
     val refusedKey: String? = null,
     /** [OtaRelease.identity] of the build the "ready, tap to install" notification was posted for. */
     val readyNotifiedKey: String? = null,
+    /**
+     * [OtaRelease.identity] of a build someone tapped "Update" for: it is installed as soon as
+     * it has been fetched and checked, without waiting for the app to be closed.
+     */
+    val installRequestedKey: String? = null,
 ) {
     val hasUpdate: Boolean get() = state == OtaState.UPDATE || state == OtaState.READY
 
     /** A build is known and still to be installed. */
     val pending: Boolean get() = release != null && hasUpdate
+
+    /** Someone tapped "Update" for exactly the build that is stored. */
+    val installRequested: Boolean
+        get() = release != null && installRequestedKey == release.identity
 
     /** Two self-installs in a row failed; from then on it waits to be asked. */
     val stoppedRetrying: Boolean get() = attemptFailures >= 2

@@ -236,6 +236,13 @@ class ScreenshotTest {
         )
     }
 
+    @Test fun app_detail_self_light() = shot("app_detail_self_light", dark = false) {
+        AppDetailScreen(
+            Samples.selfDetail, shellAvailable = true, actions = AppDetailActions(),
+            selfOta = Samples.otaUpdate,
+        )
+    }
+
     @Test fun app_detail_no_source_dark() = shot("app_detail_no_source_dark", dark = true) {
         AppDetailScreen(Samples.healthyDetail, shellAvailable = false, actions = AppDetailActions())
     }
@@ -535,6 +542,16 @@ private object Samples {
     )
 
     val healthyDetail = AppDetail(row = AppRow(termuxReport, self), signer = playCert)
+
+    private val selfReport = VerifyReport(
+        packageName = BuildConfig.APPLICATION_ID, verdict = Verdict.OK, label = "Split Sideloader",
+        versionName = BuildConfig.VERSION_NAME, versionCode = BuildConfig.VERSION_CODE.toLong(),
+        installerPackage = "com.sideload.splitinstaller",
+        firstInstallTime = now - 9 * 86_400_000L, lastUpdateTime = now - 86_400_000L,
+        findings = listOf(Finding(Severity.INFO, "no native code", FindingCode.NO_NATIVE_EXPECTED, emptyList())),
+    )
+
+    val selfDetail = AppDetail(row = AppRow(selfReport, self), signer = playCert)
 
     val found = listOf(
         FoundBundle(Uri.parse("content://d/1"), "Zenless Zone Zero_2.2.0_APKPure.xapk", 483 * MB, now - 12 * 60_000L, null),

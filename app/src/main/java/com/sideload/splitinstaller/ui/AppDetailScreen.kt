@@ -69,6 +69,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sideload.splitinstaller.R
+import com.sideload.splitinstaller.core.ota.OtaStatus
+import com.sideload.splitinstaller.core.ota.OtaState
+import com.sideload.splitinstaller.BuildConfig
 import com.sideload.splitinstaller.core.apps.LaunchProblem
 import com.sideload.splitinstaller.core.update.UpdateKind
 import com.sideload.splitinstaller.core.update.UpdatePin
@@ -94,6 +97,7 @@ class AppDetailActions(
     val onUnpin: (String) -> Unit = {},
     val onDownloadUpdate: (UpdateResult) -> Unit = {},
     val onOpenPage: (String) -> Unit = {},
+    val onOtaUpdate: () -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -105,9 +109,14 @@ fun AppDetailScreen(
     pin: UpdatePin? = null,
     update: UpdateResult? = null,
     checkingUpdate: Boolean = false,
+    /** Set when this screen shows Split Sideloader itself: its updates come through OTA. */
+    selfOta: OtaStatus? = null,
+    selfOtaProgress: Float? = null,
 ) {
     val r = detail.row.report
     val label = r.label ?: r.packageName
+    // Split Sideloader's own entry: it updates through its channel, and must not act on itself.
+    val isSelf = r.packageName == BuildConfig.APPLICATION_ID
     Scaffold(
         topBar = {
             TopAppBar(
@@ -159,7 +168,11 @@ fun AppDetailScreen(
             item(key = "verdict") { VerdictHero(r) }
 
             item(key = "update") {
-                UpdateCard(label, r.packageName, pin, update, checkingUpdate, actions)
+                if (isSelf) {
+                    SelfUpdateCard(selfOta, selfOtaProgress, actions.onOtaUpdate)
+                } else {
+                    UpdateCard(label, r.packageName, pin, update, checkingUpdate, actions)
+                }
             }
 
             if (detail.row.installer.risky) {
@@ -179,22 +192,31 @@ fun AppDetailScreen(
 
             item(key = "actions") {
                 ActionGrid(
-                    listOf(
-                        GridAction(Icons.AutoMirrored.Rounded.OpenInNew, stringResource(R.string.action_launch)) { actions.onLaunch(r.packageName) },
-                        GridAction(
-                            Icons.Rounded.BugReport,
-                            stringResource(R.string.action_diagnose),
-                            enabled = shellAvailable && !detail.diagnosing,
-                            hint = if (shellAvailable) null else stringResource(R.string.needs_shell),
-                        ) { actions.onDiagnose() },
-                        GridAction(Icons.Rounded.Backup, stringResource(R.string.action_backup), enabled = !detail.exporting) { actions.onExport() },
-                        GridAction(Icons.Rounded.Healing, stringResource(R.string.action_repair_with_bundle)) { actions.onRepairWithBundle() },
-                        GridAction(Icons.Rounded.TravelExplore, stringResource(R.string.action_find_update)) { actions.onFindUpdate(label) },
-                        GridAction(Icons.Rounded.Info, stringResource(R.string.action_app_info)) { actions.onAppInfo(r.packageName) },
-                        GridAction(Icons.Rounded.DeleteOutline, stringResource(R.string.action_uninstall), danger = true) {
-                            actions.onUninstall(r.packageName)
-                        },
-                    )
+                    buildList {
+                        if (!isSelf) {
+                            add(GridAction(Icons.AutoMirrored.Rounded.OpenInNew, stringResource(R.string.action_launch)) { actions.onLaunch(r.packageName) })
+                            // Diagnosing force-stops the app, which for this one would be itself.
+                            add(
+                                GridAction(
+                                    Icons.Rounded.BugReport,
+                                    stringResource(R.string.action_diagnose),
+                                    enabled = shellAvailable && !detail.diagnosing,
+                                    hint = if (shellAvailable) null else stringResource(R.string.needs_shell),
+                                ) { actions.onDiagnose() }
+                            )
+                        }
+                        add(GridAction(Icons.Rounded.Backup, stringResource(R.string.action_backup), enabled = !detail.exporting) { actions.onExport() })
+                        if (!isSelf) {
+                            add(GridAction(Icons.Rounded.Healing, stringResource(R.string.action_repair_with_bundle)) { actions.onRepairWithBundle() })
+                            add(GridAction(Icons.Rounded.TravelExplore, stringResource(R.string.action_find_update)) { actions.onFindUpdate(label) })
+                        }
+                        add(GridAction(Icons.Rounded.Info, stringResource(R.string.action_app_info)) { actions.onAppInfo(r.packageName) })
+                        add(
+                            GridAction(Icons.Rounded.DeleteOutline, stringResource(R.string.action_uninstall), danger = true) {
+                                actions.onUninstall(r.packageName)
+                            }
+                        )
+                    }
                 )
             }
 
@@ -580,4 +602,63 @@ private fun PinSourceDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
+}
+
+/** Split Sideloader's own entry: no source to pin, its channel is built in. */
+@Composable
+private fun SelfUpdateCard(ota: OtaStatus?, progress: Float?, onUpdate: () -> Unit) {
+    AppCard {
+        CardTitle(
+            stringResource(R.string.card_update),
+            Icons.Rounded.SystemUpdateAlt,
+            trailing = { StatusPill("OTA", Tone.INFO) },
+        )
+        if (ota == null) {
+            // The channel is off: say where updates come from instead of offering a source pin,
+            // whose downloads this app would not install for itself.
+            Text(
+                stringResource(R.string.ota_self_channel_off),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            return@AppCard
+        }
+        val release = ota.release
+        when {
+            ota.hasUpdate && release != null -> {
+                StatusLineRow(
+                    Icons.Rounded.SystemUpdateAlt, Tone.INFO,
+                    stringResource(R.string.update_available, BuildConfig.VERSION_NAME, release.versionName ?: "?"),
+                )
+                release.notes?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                }
+                UpdateButton(ota, progress, onUpdate, Modifier.fillMaxWidth())
+            }
+            ota.state == OtaState.UP_TO_DATE -> StatusLineRow(
+                Icons.Rounded.CheckCircle, Tone.SUCCESS,
+                stringResource(R.string.update_current, BuildConfig.VERSION_NAME),
+            )
+            ota.state == OtaState.ERROR -> FindingRow(
+                com.sideload.splitinstaller.core.bundle.Severity.WARN,
+                stringResource(R.string.ota_state_error, ota.message ?: "?"),
+            )
+            ota.state == OtaState.UNKNOWN -> FindingRow(
+                com.sideload.splitinstaller.core.bundle.Severity.WARN,
+                stringResource(R.string.ota_state_unknown, release?.versionName ?: "?"),
+            )
+            ota.checkedAt == 0L -> Text(
+                stringResource(R.string.update_not_checked),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (ota.checkedAt > 0) {
+            Text(
+                stringResource(R.string.update_checked_at, relativeTime(ota.checkedAt)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }

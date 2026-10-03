@@ -27,7 +27,9 @@ import com.sideload.splitinstaller.core.log.EventLog
 import com.sideload.splitinstaller.core.sources.Downloads
 import com.sideload.splitinstaller.core.watch.Notifications
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.TimeUnit
 
 /**
@@ -77,7 +79,14 @@ class OtaInstallWorker(context: Context, params: WorkerParameters) : CoroutineWo
 
         // The file may have been deleted meanwhile; that is not a bad build.
         if (!OtaFlow.fileExists(context, uri)) {
+            val stored = OtaStore.status.value
             OtaStore.clearMissingFile(context, uri.toString())
+            // Someone asked for this build: fetch it again and carry on, rather than stop.
+            val release = stored.release
+            if (release != null && (userAsked || stored.installRequested)) {
+                OtaStore.requestInstall(context, release.identity)
+                OtaFlow.startDownload(context, release, automatic = false)
+            }
             return@withContext Result.success()
         }
 
@@ -97,7 +106,12 @@ class OtaInstallWorker(context: Context, params: WorkerParameters) : CoroutineWo
             return@withContext Result.success()
         }
 
-        if (!userAsked) {
+        // A tap on "Update" for this build counts as asking, even when it was the download
+        // finishing that started this run. A retried run only still counts while the tap does:
+        // "Later" withdraws it.
+        val requested = OtaStore.status.value.installRequested
+        val asked = requested || (userAsked && runAttemptCount == 0)
+        if (!asked) {
             if (!prefs.otaInstallsItself || !OtaStore.mayInstallItself) {
                 OtaFlow.notifyReadyOnce(context, info.versionName)
                 return@withContext Result.success()
@@ -106,6 +120,14 @@ class OtaInstallWorker(context: Context, params: WorkerParameters) : CoroutineWo
             // of an install or a backup, which would be cut off with it.
             if (AppVisibility.foreground || Busy.any) {
                 OtaFlow.notifyReadyOnce(context, info.versionName)
+                return@withContext if (runAttemptCount < MAX_DEFERRALS) Result.retry() else Result.success()
+            }
+        }
+        // Even when asked, an install or backup already running is let finish first — waited
+        // for here, so the update follows straight after it rather than a quarter-hour later.
+        if (Busy.any) {
+            val cleared = withTimeoutOrNull(BUSY_WAIT_MS) { Busy.count.first { it == 0 } } != null
+            if (!cleared) {
                 return@withContext if (runAttemptCount < MAX_DEFERRALS) Result.retry() else Result.success()
             }
         }
@@ -136,6 +158,8 @@ class OtaInstallWorker(context: Context, params: WorkerParameters) : CoroutineWo
             // Counted here, since the process survived; waiting for the next launch to notice
             // would let a background run try the same build again before then.
             OtaStore.recordFailure(context)
+            // A tap is honoured once; after a failure the next try is another tap.
+            if (requested) OtaStore.requestInstall(context, null)
             Notifications.result(context, context.getString(R.string.ota_failed_title), outcome.message, uri)
         }
         Result.success()
@@ -151,6 +175,9 @@ class OtaInstallWorker(context: Context, params: WorkerParameters) : CoroutineWo
 
         /** Waiting for the app to close or other work to finish: about nine hours at most. */
         private const val MAX_DEFERRALS = 8
+
+        /** How long an asked run waits in place for other work; under WorkManager's ten minutes. */
+        private const val BUSY_WAIT_MS = 8 * 60 * 1000L
 
         /**
          * @param replace true for a tap, and for a file that has just finished downloading,

@@ -210,6 +210,7 @@ class WatchService : LifecycleService() {
                 is InstallEvent.Progress -> startInForeground(
                     event.label + " " + (event.fraction * 100).toInt() + "%"
                 )
+                is InstallEvent.AwaitingConfirmation -> Unit
             }
         }
         startInForeground(getString(R.string.watch_dirs_n, observers.size))

@@ -184,6 +184,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         vm.refreshCapabilities()
         vm.checkOtaIfStale()
+        vm.continueRequestedUpdate()
     }
 
     override fun onDestroy() {
@@ -362,10 +363,13 @@ class MainActivity : ComponentActivity() {
                                     toast(getString(R.string.download_started))
                                 },
                                 onOpenPage = { url -> srcVm.openUrl(url) },
+                                onOtaUpdate = vm::updateOta,
                             ),
                             pin = apps.pins[detail.row.report.packageName],
                             update = apps.updates[detail.row.report.packageName],
                             checkingUpdate = apps.checkingUpdates,
+                            selfOta = ota.takeIf { OtaChannel.parse(settings.otaChannel).isOn },
+                            selfOtaProgress = otaProgress(sources.downloads),
                         )
                     }
                     else -> Tabs(
@@ -435,10 +439,7 @@ class MainActivity : ComponentActivity() {
                             onGrantNotifications = ::requestNotificationPermission,
                             onToggleWatch = vm::setWatch,
                             onOpenSources = { onTab(Tabs.SOURCES) },
-                            onOtaDownload = {
-                                vm.downloadOta { toast(getString(R.string.download_started)) }
-                            },
-                            onOtaInstall = vm::installOta,
+                            onOtaUpdate = vm::updateOta,
                             onOtaDismiss = vm::dismissOta,
                             onOpenHistory = { entry ->
                                 val pkg = entry.packageName
@@ -452,9 +453,7 @@ class MainActivity : ComponentActivity() {
                         ),
                         modifier = inner,
                         ota = ota.takeIf { !otaDismissed && OtaChannel.parse(settings.otaChannel).isOn },
-                        otaDownloading = sources.downloads.any {
-                            it.active && !it.waitingForWifi && it.expectedPackage == packageName
-                        },
+                        otaProgress = otaProgress(sources.downloads),
                     )
                     Tabs.SOURCES -> SourcesScreen(
                         state = sources,
@@ -474,7 +473,7 @@ class MainActivity : ComponentActivity() {
                         modifier = inner,
                     )
                     Tabs.APPS -> AppsScreen(
-                        state = apps,
+                        state = withOwnUpdate(apps, ota, settings),
                         actions = AppsActions(
                             onScan = appsVm::scan,
                             onQuery = appsVm::setQuery,
@@ -497,6 +496,7 @@ class MainActivity : ComponentActivity() {
                         device = state.device,
                         ota = ota,
                         otaChecking = otaChecking,
+                        otaProgress = otaProgress(sources.downloads),
                         actions = SettingsActions(
                             onTheme = { next -> prefs.updateTheme { next } },
                             onValues = onSettings,
@@ -508,10 +508,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onBatteryExempt = ::requestBatteryExemption,
                             onOtaCheck = vm::checkOta,
-                            onOtaDownload = {
-                                vm.downloadOta { toast(getString(R.string.download_started)) }
-                            },
-                            onOtaInstall = vm::installOta,
+                            onOtaUpdate = vm::updateOta,
                         ),
                         modifier = inner,
                     )
@@ -632,6 +629,34 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Aggressive ROMs freeze background work; this is the switch that stops them. */
+    /** How far this app's own download is, or null when none is under way. */
+    private fun otaProgress(downloads: List<com.sideload.splitinstaller.core.sources.DownloadItem>): Float? =
+        downloads.firstOrNull { it.active && !it.waitingForWifi && it.expectedPackage == packageName }
+            ?.let { if (it.total > 0) (it.bytes.toFloat() / it.total).coerceIn(0f, 1f) else 0f }
+
+    /** This app's own new build, listed like a pinned update so it shows in the list and its filter. */
+    private fun withOwnUpdate(
+        apps: com.sideload.splitinstaller.ui.AppsState,
+        ota: com.sideload.splitinstaller.core.ota.OtaStatus,
+        settings: SettingsValues,
+    ): com.sideload.splitinstaller.ui.AppsState {
+        val release = ota.release
+        if (!ota.hasUpdate || release == null || !OtaChannel.parse(settings.otaChannel).isOn) return apps
+        val own = com.sideload.splitinstaller.core.update.UpdateResult(
+            packageName = packageName,
+            kind = com.sideload.splitinstaller.core.update.UpdateKind.GITHUB,
+            state = com.sideload.splitinstaller.core.update.UpdateState.UPDATE,
+            label = getString(R.string.app_name),
+            installedVersionName = BuildConfig.VERSION_NAME,
+            installedVersionCode = BuildConfig.VERSION_CODE.toLong(),
+            availableVersionName = release.versionName,
+            availableVersionCode = release.versionCode.takeIf { it > 0 },
+            size = release.size,
+            checkedAt = ota.checkedAt,
+        )
+        return apps.copy(updates = apps.updates + (packageName to own))
+    }
+
     private fun requestBatteryExemption() {
         val direct = Intent(
             Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,

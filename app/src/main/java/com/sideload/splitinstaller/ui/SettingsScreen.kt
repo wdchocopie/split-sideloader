@@ -121,8 +121,7 @@ class SettingsActions(
     val onClearHistory: () -> Unit = {},
     val onBatteryExempt: () -> Unit = {},
     val onOtaCheck: () -> Unit = {},
-    val onOtaDownload: () -> Unit = {},
-    val onOtaInstall: () -> Unit = {},
+    val onOtaUpdate: () -> Unit = {},
 )
 
 private const val SHIZUKU_START =
@@ -139,6 +138,8 @@ fun SettingsScreen(
     device: DeviceReport?,
     ota: OtaStatus = OtaStatus(),
     otaChecking: Boolean = false,
+    /** This app's own download, 0..1, or null when none is running. */
+    otaProgress: Float? = null,
     actions: SettingsActions,
     modifier: Modifier = Modifier,
 ) {
@@ -288,7 +289,7 @@ fun SettingsScreen(
 
             // ---- this app ---------------------------------------------------------------
             item { SectionLabel(stringResource(R.string.ota_section)) }
-            item { OtaSettings(values, ota, otaChecking, device?.silentAvailable == true, actions) }
+            item { OtaSettings(values, ota, otaChecking, otaProgress, device?.silentAvailable == true, actions) }
 
             // ---- device -----------------------------------------------------------------------
             if (device != null) {
@@ -471,6 +472,7 @@ private fun OtaSettings(
     values: SettingsValues,
     ota: OtaStatus,
     checking: Boolean,
+    progress: Float?,
     silent: Boolean,
     actions: SettingsActions,
 ) {
@@ -582,14 +584,8 @@ private fun OtaSettings(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.ota_check_now))
                 }
-                when (ota.state) {
-                    OtaState.UPDATE -> TextButton(onClick = { commit(); actions.onOtaDownload() }) {
-                        Text(stringResource(R.string.ota_download))
-                    }
-                    OtaState.READY -> TextButton(onClick = { commit(); actions.onOtaInstall() }) {
-                        Text(stringResource(R.string.ota_install_now))
-                    }
-                    else -> Unit
+                if (ota.hasUpdate) {
+                    UpdateButton(ota, progress, onUpdate = { commit(); actions.onOtaUpdate() })
                 }
             }
         }

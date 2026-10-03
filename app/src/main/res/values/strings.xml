@@ -476,9 +476,11 @@
     <string name="ota_auto_install_desc">Install the downloaded build without asking. The app closes while it happens.</string>
     <string name="ota_needs_silent">Needs Shizuku or root. Without one, the build is downloaded and checked, then waits for your tap.</string>
     <string name="ota_check_now">Check now</string>
-    <string name="ota_download">Download</string>
-    <string name="ota_install_now">Install now</string>
-    <string name="ota_downloading">Downloading…</string>
+    <string name="ota_update">Update</string>
+    <string name="ota_downloading_pct">Downloading… %1$d%%</string>
+    <string name="ota_updated_title">Split Sideloader updated to %1$s</string>
+    <string name="ota_updated_body">Tap to open it.</string>
+    <string name="ota_self_channel_off">Updates for this app come through its own update channel, which is off. Set it in Settings → This app.</string>
     <string name="ota_later">Later</string>
     <string name="ota_installing">Installing a new build of this app…</string>
     <string name="ota_state_update">%1$s is out</string>

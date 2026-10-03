@@ -181,6 +181,21 @@ object Notifications {
         )
     }
 
+    /** The app has just been replaced by a newer build, which closed it. */
+    fun otaUpdated(context: Context, versionName: String) {
+        val text = context.getString(R.string.ota_updated_body)
+        post(
+            context,
+            NotificationCompat.Builder(context, CHANNEL_EVENTS)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(context.getString(R.string.ota_updated_title, versionName))
+                .setContentText(text)
+                .setAutoCancel(true)
+                .setContentIntent(openApp(context, null))
+                .build()
+        )
+    }
+
     /** Downloaded and checked, but Android needs a tap to replace a running app. */
     fun otaReady(context: Context, versionName: String) {
         val text = context.getString(R.string.ota_ready_body, versionName)

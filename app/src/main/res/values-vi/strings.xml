@@ -472,9 +472,11 @@
     <string name="ota_auto_install_desc">Cài bản vừa tải mà không hỏi. App sẽ tắt trong lúc đó.</string>
     <string name="ota_needs_silent">Cần Shizuku hoặc root. Không có thì bản mới vẫn được tải và kiểm, rồi nằm chờ bạn bấm.</string>
     <string name="ota_check_now">Kiểm tra ngay</string>
-    <string name="ota_download">Tải về</string>
-    <string name="ota_install_now">Cài ngay</string>
-    <string name="ota_downloading">Đang tải…</string>
+    <string name="ota_update">Cập nhật</string>
+    <string name="ota_downloading_pct">Đang tải… %1$d%%</string>
+    <string name="ota_updated_title">Đã cập nhật Split Sideloader lên %1$s</string>
+    <string name="ota_updated_body">Chạm để mở.</string>
+    <string name="ota_self_channel_off">Bản cập nhật của app này đến qua kênh cập nhật riêng, hiện đang tắt. Bật trong Tùy chọn → Ứng dụng này.</string>
     <string name="ota_later">Để sau</string>
     <string name="ota_installing">Đang cài bản mới của chính app…</string>
     <string name="ota_state_update">Đã có bản %1$s</string>

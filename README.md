@@ -187,10 +187,17 @@ tự cập nhật. Mỗi lần mở (hoặc quay lại) app mà lần kiểm tra
 luôn, không chờ lịch nền. Tự tải tôn trọng "Chỉ dùng Wi-Fi": đang dùng dữ liệu di động thì
 chờ Wi-Fi. Một bản đã tải chỉ tải một lần; bản bị từ chối không tự tải lại.
 
-Tự cài (cần Shizuku/root) chỉ diễn ra khi **không có màn hình nào của app đang mở và không có
+**Nút "Cập nhật".** Có bản mới thì app chỉ hiện một nút **Cập nhật** — ở thẻ tab Cài gói,
+trong Tùy chọn, và ở chính mục Split Sideloader trong tab Ứng dụng (danh sách cũng hiện viên
+`→ 1.5.x` và lọc "Có bản mới" như mọi app khác). Một chạm: chưa tải thì tải (hiện phần trăm),
+kiểm xong là cài ngay. Có Shizuku/root thì cài thẳng; không có thì Android hiện hộp thoại của
+chính nó với nút **Cập nhật**. Thay app thì app đóng lại, nên sau đó có thông báo "Đã cập nhật
+Split Sideloader lên 1.5.x — chạm để mở".
+
+Tự cài không cần chạm (cần Shizuku/root) chỉ diễn ra khi **không có màn hình nào của app đang mở và không có
 lượt cài nào khác đang chạy** — thay app đồng nghĩa với đóng nó, nên không bao giờ cắt ngang
-một lượt cài gói 500 MB. Trong lúc chờ, thẻ ở tab Cài gói cho cài ngay bằng một chạm. Không có
-Shizuku/root thì chạm "Cài ngay" mở màn hình cài bình thường, hệ thống hỏi xác nhận một lần.
+một lượt cài gói 500 MB. Trong lúc chờ, nút **Cập nhật** cài ngay bằng một chạm. Nút đó cũng
+không chen ngang: đang có lượt cài hay sao lưu khác thì nó chờ việc kia xong rồi tự làm tiếp.
 
 Lên 1.5.1 từ 1.5.0: bản 1.5.0 từng lưu kênh rỗng và tắt tự cài như giá trị mặc định mỗi khi
 đổi bất kỳ tùy chọn nào, nên 1.5.1 coi hai giá trị đó là chưa chọn và áp mặc định mới. Từ
@@ -451,7 +458,7 @@ Test chạy trên JVM, không cần máy Android:
 | `VersionCompareTest` | So chuỗi phiên bản: `1.10 > 1.9`, pre-release, trả về “không so được” |
 | `UpdateCheckerTest` | Đọc JSON thật của F-Droid và GitHub, chọn asset theo ABI, rút gọn link repo |
 | `OtaTest` | Nhận diện kênh (chặn http), đọc manifest, so phiên bản của chính app |
-| `ScreenshotTest` | 24 màn hình, sáng/tối/AMOLED, tiếng Việt + English, so với ảnh gốc |
+| `ScreenshotTest` | 25 màn hình, sáng/tối/AMOLED, tiếng Việt + English, so với ảnh gốc |
 
 ---
 

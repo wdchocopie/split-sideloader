@@ -148,13 +148,15 @@ class OtaStoreMergeTest {
     fun `device facts survive every check`() {
         val current = OtaStatus(
             OtaState.ERROR, v2, attemptedVersion = 99, attemptFailures = 1,
-            refusedKey = v2.identity, readyNotifiedKey = v2.identity,
+            refusedKey = v2.identity, readyNotifiedKey = v2.identity, installRequestedKey = v3.identity,
         )
         val merged = OtaStore.merge(current, OtaStatus(OtaState.UPDATE, v3, checkedAt = 5))
         assertEquals(99L, merged.attemptedVersion)
         assertEquals(1, merged.attemptFailures)
         assertEquals(v2.identity, merged.refusedKey)
         assertEquals(v2.identity, merged.readyNotifiedKey)
+        // The tap was for v3, which the check has just found: it now applies.
+        assertEquals(true, merged.installRequested)
     }
 
     @Test
@@ -188,5 +190,18 @@ class OtaIdentityTest {
         assertEquals(true, OtaStatus(OtaState.UPDATE, r).pending)
         assertEquals(false, OtaStatus(OtaState.UP_TO_DATE, r).pending)
         assertEquals(false, OtaStatus(OtaState.UPDATE, null).pending)
+    }
+}
+
+class OtaRequestTest {
+
+    private val v2 = OtaRelease(versionName = "2.0", versionCode = 99, url = "https://x/2.apk", fileName = "2.apk", sha256 = "aa")
+
+    @Test
+    fun `a tap applies only to the build it was made for`() {
+        assertEquals(true, OtaStatus(OtaState.UPDATE, v2, installRequestedKey = v2.identity).installRequested)
+        assertEquals(false, OtaStatus(OtaState.UPDATE, v2.copy(sha256 = "bb"), installRequestedKey = v2.identity).installRequested)
+        assertEquals(false, OtaStatus(OtaState.UPDATE, v2).installRequested)
+        assertEquals(false, OtaStatus(OtaState.UPDATE, null, installRequestedKey = v2.identity).installRequested)
     }
 }

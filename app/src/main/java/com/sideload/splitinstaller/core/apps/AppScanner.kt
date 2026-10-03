@@ -83,7 +83,6 @@ object AppScanner {
                     (ai.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
                 includeSystem || !system
             }
-            .filter { it.packageName != context.packageName }
 
         val total = packages.size
         val done = AtomicInteger(0)

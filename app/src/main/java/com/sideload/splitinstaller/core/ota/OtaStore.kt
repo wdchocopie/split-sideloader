@@ -5,6 +5,7 @@ import androidx.work.WorkManager
 import com.sideload.splitinstaller.BuildConfig
 import com.sideload.splitinstaller.core.log.EventLog
 import com.sideload.splitinstaller.core.sources.Downloads
+import com.sideload.splitinstaller.core.watch.Notifications
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
@@ -60,9 +61,11 @@ object OtaStore {
         val keepFile = sameBuild && status.fileUri == null
         return status.copy(
             attemptedVersion = current.attemptedVersion,
+            attemptViaDialog = current.attemptViaDialog,
             attemptFailures = current.attemptFailures,
             refusedKey = current.refusedKey,
             readyNotifiedKey = current.readyNotifiedKey,
+            installRequestedKey = current.installRequestedKey,
             fileUri = if (keepFile) current.fileUri else status.fileUri,
             fileSourceUrl = if (keepFile) current.fileSourceUrl else status.fileSourceUrl,
             state = if (sameBuild && current.state == OtaState.READY && status.state == OtaState.UPDATE) {
@@ -110,9 +113,15 @@ object OtaStore {
 
     fun markReadyNotified(context: Context, key: String) = update(context) { it.copy(readyNotifiedKey = key) }
 
+    /** Remembers (or, with null, forgets) a tap on "Update" for one build. */
+    fun requestInstall(context: Context, key: String?) = update(context) { it.copy(installRequestedKey = key) }
+
+    /** An attempt that ended without an install, e.g. a confirmation dialog that was declined. */
+    fun cancelAttempt(context: Context) = update(context) { it.copy(attemptedVersion = 0, attemptViaDialog = false) }
+
     /** Written before the install starts, since the process will not be alive after it. */
-    fun markAttempt(context: Context, versionCode: Long) = update(context) {
-        it.copy(attemptedVersion = versionCode)
+    fun markAttempt(context: Context, versionCode: Long, viaDialog: Boolean = false) = update(context) {
+        it.copy(attemptedVersion = versionCode, attemptViaDialog = viaDialog)
     }
 
     /**
@@ -127,13 +136,16 @@ object OtaStore {
         if (attempted <= 0) return false
         return if (BuildConfig.VERSION_CODE >= attempted) {
             EventLog.info("OTA: now running " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")")
-            update(context) { it.copy(attemptedVersion = 0, attemptFailures = 0) }
+            update(context) { it.copy(attemptedVersion = 0, attemptViaDialog = false, attemptFailures = 0) }
             retire(context, OtaState.UP_TO_DATE)
+            // The update closed the app; this is how the person who tapped it gets back in.
+            runCatching { Notifications.otaUpdated(context, BuildConfig.VERSION_NAME) }
             true
         } else {
-            val failures = current.attemptFailures + 1
-            EventLog.warn("OTA: the update to versionCode $attempted did not take (attempt $failures)")
-            update(context) { it.copy(attemptedVersion = 0, attemptFailures = failures) }
+            // A dialog left unanswered ended nothing; only a silent install that did not take counts.
+            val failures = if (current.attemptViaDialog) current.attemptFailures else current.attemptFailures + 1
+            EventLog.warn("OTA: the update to versionCode $attempted did not take (failures: $failures)")
+            update(context) { it.copy(attemptedVersion = 0, attemptViaDialog = false, attemptFailures = failures) }
             false
         }
     }
@@ -143,7 +155,7 @@ object OtaStore {
 
     /** An install that failed without replacing the process: the attempt is over, and it counts. */
     fun recordFailure(context: Context) = update(context) {
-        it.copy(attemptedVersion = 0, attemptFailures = it.attemptFailures + 1)
+        it.copy(attemptedVersion = 0, attemptViaDialog = false, attemptFailures = it.attemptFailures + 1)
     }
 
     /**
@@ -178,7 +190,7 @@ object OtaStore {
             runCatching { WorkManager.getInstance(context).cancelUniqueWork(OtaInstallWorker.UNIQUE) }
         }
         update(context) {
-            val base = it.copy(state = state, fileUri = null, fileSourceUrl = null)
+            val base = it.copy(state = state, fileUri = null, fileSourceUrl = null, installRequestedKey = null)
             if (forgetCheck) base.copy(release = null, checkedAt = 0, message = null) else base
         }
     }
@@ -218,9 +230,11 @@ object OtaStore {
             fileUri = o.optString("file").ifBlank { null },
             fileSourceUrl = o.optString("fileSource").ifBlank { null },
             attemptedVersion = o.optLong("attempted"),
+            attemptViaDialog = o.optBoolean("viaDialog"),
             attemptFailures = o.optInt("failures"),
             refusedKey = o.optString("refused").ifBlank { null },
             readyNotifiedKey = o.optString("notified").ifBlank { null },
+            installRequestedKey = o.optString("requested").ifBlank { null },
         )
     }
 
@@ -232,9 +246,11 @@ object OtaStore {
             .put("file", status.fileUri.orEmpty())
             .put("fileSource", status.fileSourceUrl.orEmpty())
             .put("attempted", status.attemptedVersion)
+            .put("viaDialog", status.attemptViaDialog)
             .put("failures", status.attemptFailures)
             .put("refused", status.refusedKey.orEmpty())
             .put("notified", status.readyNotifiedKey.orEmpty())
+            .put("requested", status.installRequestedKey.orEmpty())
         status.release?.let { r ->
             o.put(
                 "release",

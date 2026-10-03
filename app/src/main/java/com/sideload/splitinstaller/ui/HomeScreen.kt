@@ -93,8 +93,7 @@ class HomeActions(
     val onToggleWatch: (Boolean) -> Unit = {},
     val onOpenSources: () -> Unit = {},
     val onOpenHistory: (HistoryEntry) -> Unit = {},
-    val onOtaDownload: () -> Unit = {},
-    val onOtaInstall: () -> Unit = {},
+    val onOtaUpdate: () -> Unit = {},
     val onOtaDismiss: () -> Unit = {},
 )
 
@@ -107,7 +106,8 @@ fun HomeScreen(
     actions: HomeActions,
     modifier: Modifier = Modifier,
     ota: OtaStatus? = null,
-    otaDownloading: Boolean = false,
+    /** This app's own download, 0..1, or null when none is running. */
+    otaProgress: Float? = null,
 ) {
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -137,7 +137,7 @@ fun HomeScreen(
             item(key = "hero") { StatusHero(state.device, actions.onCapability) }
 
             if (ota != null && ota.hasUpdate) {
-                item(key = "ota") { OtaCard(ota, state.device?.silentAvailable == true, otaDownloading, actions) }
+                item(key = "ota") { OtaCard(ota, state.device?.silentAvailable == true, otaProgress, actions) }
             }
 
             val device = state.device
@@ -569,7 +569,7 @@ private fun historyStatus(entry: HistoryEntry): Triple<Int, Tone, ImageVector> =
 
 /** This app has a newer build waiting. Shown here because it is the first screen. */
 @Composable
-private fun OtaCard(ota: OtaStatus, silent: Boolean, downloading: Boolean, actions: HomeActions) {
+private fun OtaCard(ota: OtaStatus, silent: Boolean, progress: Float?, actions: HomeActions) {
     val ready = ota.state == OtaState.READY
     AppCard(color = Tone.INFO.container(), contentColor = Tone.INFO.onContainer()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -593,24 +593,33 @@ private fun OtaCard(ota: OtaStatus, silent: Boolean, downloading: Boolean, actio
             Text(stringResource(R.string.ota_needs_tap), style = MaterialTheme.typography.bodySmall)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(
-                onClick = if (ready) actions.onOtaInstall else actions.onOtaDownload,
-                enabled = ready || !downloading,
-            ) {
-                Icon(
-                    if (ready) Icons.Rounded.InstallMobile else Icons.Rounded.Download,
-                    null,
-                    Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    if (ready) stringResource(R.string.ota_install_now)
-                    else if (downloading) stringResource(R.string.ota_downloading)
-                    else stringResource(R.string.ota_download) +
-                        (ota.release?.size?.takeIf { it > 0 }?.let { " · " + humanSize(it) } ?: "")
-                )
-            }
+            UpdateButton(ota, progress, actions.onOtaUpdate)
             TextButton(onClick = actions.onOtaDismiss) { Text(stringResource(R.string.ota_later)) }
         }
+    }
+}
+
+/**
+ * The one button for this app's own new build. It reads "Update" in every state it can be
+ * tapped in, and shows the download while one is running.
+ */
+@Composable
+internal fun UpdateButton(ota: OtaStatus, progress: Float?, onUpdate: () -> Unit, modifier: Modifier = Modifier) {
+    val downloading = progress != null && ota.state != OtaState.READY
+    FilledTonalButton(onClick = onUpdate, enabled = !downloading, modifier = modifier) {
+        if (downloading) {
+            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Rounded.SystemUpdateAlt, null, Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            when {
+                downloading -> stringResource(R.string.ota_downloading_pct, ((progress ?: 0f) * 100).toInt())
+                ota.state == OtaState.READY -> stringResource(R.string.ota_update)
+                else -> stringResource(R.string.ota_update) +
+                    (ota.release?.size?.takeIf { it > 0 }?.let { " \u00b7 " + humanSize(it) } ?: "")
+            }
+        )
     }
 }

@@ -2,9 +2,13 @@ package com.sideload.splitinstaller.ui
 
 import android.app.Application
 import android.net.Uri
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkManager
 import com.sideload.splitinstaller.core.Prefs
+import com.sideload.splitinstaller.core.Busy
+import com.sideload.splitinstaller.core.AppVisibility
 import com.sideload.splitinstaller.core.bundle.BundleInfo
 import com.sideload.splitinstaller.core.bundle.BundleInspector
 import com.sideload.splitinstaller.core.bundle.BundleScanner
@@ -40,6 +44,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -89,6 +94,10 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
     init {
         _state.update { it.copy(watchEnabled = prefs.watchEnabled, backupFirst = prefs.backupBeforeUpdate) }
         refreshCapabilities()
+        // A tapped update continues as soon as its file has been fetched and checked.
+        viewModelScope.launch {
+            combine(OtaStore.status, Busy.count) { _, _ -> }.collect { continueRequestedUpdate() }
+        }
     }
 
     private val otaCheckRunning = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -307,41 +316,165 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
         if (started) onStarted()
     }
 
+    /** True while this app's own update is being installed from here, dialog included. */
+    private val otaPrompting = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** The system dialog that install is waiting on, so a later tap can bring it back. */
+    @Volatile private var otaPendingConfirm: Intent? = null
+
     /**
-     * With Shizuku or root the worker installs it. Without, Android has to ask, and it can only
-     * ask an app that is on screen: the ordinary install screen does that, after the same
-     * checks the worker would make.
+     * The "Update" button: one tap, whatever state the build is in. A build already fetched is
+     * installed now; otherwise it is fetched, and installed as soon as it has been checked.
+     */
+    fun updateOta() = viewModelScope.launch {
+        val app = getApplication<Application>()
+        val status = OtaStore.status.value
+        val release = status.release ?: return@launch
+        // A confirmation is already waiting: show it again rather than start a second install.
+        if (otaPrompting.get()) {
+            showPendingConfirm()
+            return@launch
+        }
+        val file = status.fileUri?.let(Uri::parse)
+        val ready = status.state == OtaState.READY && file != null &&
+            withContext(Dispatchers.IO) { OtaFlow.fileExists(app, file) }
+        if (ready) {
+            installOta()
+            return@launch
+        }
+        withContext(Dispatchers.IO) {
+            // A file that went missing (a storage cleaner, say) is simply fetched again.
+            if (file != null) OtaStore.clearMissingFile(app, file.toString())
+            OtaStore.requestInstall(app, release.identity)
+            runCatching { OtaFlow.startDownload(app, release, automatic = false) }
+                .onFailure { EventLog.error("could not start the OTA download: " + it.message) }
+        }
+    }
+
+    /**
+     * Picks a tapped update back up once its file is ready, once other work has finished, or
+     * when the app comes back to the front. With Shizuku the install worker takes it by itself;
+     * otherwise it is installed from here, and Android can only ask while the app is on screen.
+     */
+    fun continueRequestedUpdate() {
+        val status = OtaStore.status.value
+        if (status.state != OtaState.READY || status.fileUri == null || !status.installRequested) return
+        if (!AppVisibility.foreground || Busy.any || otaPrompting.get()) return
+        val uri = Uri.parse(status.fileUri)
+        val sourceUrl = status.fileSourceUrl ?: status.release?.url
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            if (withContext(Dispatchers.IO) { OtaFlow.silentBackend(app) } == null) {
+                installOta()
+            } else {
+                // Shizuku: the worker installs it; a run already queued keeps its place.
+                OtaInstallWorker.enqueue(app, uri, sourceUrl)
+            }
+        }
+    }
+
+    /**
+     * Installs the fetched build. With Shizuku the worker does it. Otherwise it is done here,
+     * after the same checks the worker makes: with root (confirmed in this session) without a
+     * dialog, or with the system's own confirmation, which offers "Update". It never starts
+     * while another install or a backup is running — the update waits, and continues after.
      */
     fun installOta() = viewModelScope.launch {
         val app = getApplication<Application>()
         val status = OtaStore.status.value
+        val release = status.release
         val uri = status.fileUri?.let(Uri::parse) ?: return@launch
-        val sourceUrl = status.fileSourceUrl ?: status.release?.url
-        val silent = withContext(Dispatchers.IO) { OtaFlow.silentBackend(app) }
-        if (silent != null) {
-            OtaInstallWorker.enqueue(app, uri, sourceUrl, userAsked = true, replace = true)
+        val sourceUrl = status.fileSourceUrl ?: release?.url
+        if (otaPrompting.get()) {
+            showPendingConfirm()
             return@launch
         }
-        // The file may have been deleted, e.g. by a storage cleaner: fetch it again instead.
-        val release = status.release
-        val missing = withContext(Dispatchers.IO) { !OtaFlow.fileExists(app, uri) }
-        if (missing) {
+        if (withContext(Dispatchers.IO) { !OtaFlow.fileExists(app, uri) }) {
             withContext(Dispatchers.IO) {
                 OtaStore.clearMissingFile(app, uri.toString())
-                if (release != null) OtaFlow.startDownload(app, release, automatic = false)
+                if (release != null) {
+                    OtaStore.requestInstall(app, release.identity)
+                    OtaFlow.startDownload(app, release, automatic = false)
+                }
             }
             return@launch
         }
-        val (info, problem) = withContext(Dispatchers.IO) { OtaFlow.inspectAndVerify(app, uri, sourceUrl) }
-        if (problem != null || info == null) {
-            withContext(Dispatchers.IO) { OtaFlow.refuse(app, uri, sourceUrl, problem ?: OtaProblem.UNREADABLE) }
+        if (withContext(Dispatchers.IO) { OtaFlow.silentBackend(app) } != null) {
+            if (release != null) withContext(Dispatchers.IO) { OtaStore.requestInstall(app, release.identity) }
+            OtaInstallWorker.enqueue(app, uri, sourceUrl, userAsked = true, replace = true)
             return@launch
         }
-        open(uri)
+        if (Busy.any) {
+            // Kept as a request: continueRequestedUpdate runs again when the other work ends.
+            if (release != null) withContext(Dispatchers.IO) { OtaStore.requestInstall(app, release.identity) }
+            EventLog.info("OTA: waiting for the running install or backup to finish")
+            return@launch
+        }
+        if (!otaPrompting.compareAndSet(false, true)) return@launch
+        try {
+            val (info, problem) = withContext(Dispatchers.IO) { OtaFlow.inspectAndVerify(app, uri, sourceUrl) }
+            if (problem != null || info == null) {
+                withContext(Dispatchers.IO) { OtaFlow.refuse(app, uri, sourceUrl, problem ?: OtaProblem.UNREADABLE) }
+                return@launch
+            }
+            // Root granted in this session installs without asking; otherwise the system asks.
+            val backend = withContext(Dispatchers.IO) {
+                BackendResolver.probe(app, _state.value.rootConfirmed).capabilities
+                    .firstOrNull { it.state == BackendState.READY && it.silent }?.kind
+            } ?: BackendKind.PACKAGE_INSTALLER
+            withContext(Dispatchers.IO) {
+                // The tap is used up here: declining the dialog must not bring it back by itself.
+                OtaStore.requestInstall(app, null)
+                OtaStore.markAttempt(app, info.versionCode, viaDialog = backend == BackendKind.PACKAGE_INSTALLER)
+            }
+            EventLog.rule("OTA: installing " + (info.versionName ?: "?") + " via " + backend)
+            val outcome = Installer(app).install(
+                InstallRequest(
+                    info = info,
+                    selected = SplitSelector.autoSelect(app, info).selected,
+                    backend = backend,
+                    installObb = false,
+                    allowDowngrade = false,
+                    grantAllPermissions = false,
+                    verifyChecksums = prefs.verifyChecksums,
+                    backupFirst = false,
+                ),
+            ) { event ->
+                when (event) {
+                    is InstallEvent.Log -> EventLog.add(event.severity, event.message)
+                    is InstallEvent.AwaitingConfirmation -> otaPendingConfirm = event.confirm
+                    is InstallEvent.Progress -> Unit
+                }
+            }
+            // Success replaces this process, so only a failure or a declined dialog gets here.
+            if (outcome is InstallOutcome.Failed) {
+                EventLog.warn("OTA: not installed: " + outcome.message)
+                withContext(Dispatchers.IO) { OtaStore.cancelAttempt(app) }
+            }
+        } finally {
+            otaPendingConfirm = null
+            otaPrompting.set(false)
+        }
     }
 
+    /** The confirmation can be left without an answer (Home, a tap outside); this reopens it. */
+    private fun showPendingConfirm() {
+        val confirm = otaPendingConfirm ?: return
+        runCatching {
+            getApplication<Application>().startActivity(Intent(confirm).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.onFailure { EventLog.warn("could not show the confirmation again: " + it.message) }
+    }
+
+    /** "Later" also withdraws a tap on Update, so nothing installs behind the person's back. */
     fun dismissOta() {
         _otaDismissed.value = true
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            OtaStore.requestInstall(app, null)
+            // A run waiting to install a tapped build goes too; automatic runs come back by
+            // themselves on the next background check, with their own rules.
+            runCatching { WorkManager.getInstance(app).cancelUniqueWork(OtaInstallWorker.UNIQUE) }
+        }
     }
 
     fun undismissOta() {
@@ -397,6 +530,7 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
                 is InstallEvent.Progress -> _state.update {
                     it.copy(progress = event.fraction.coerceIn(0f, 1f), progressLabel = event.label)
                 }
+                is InstallEvent.AwaitingConfirmation -> Unit
             }
         }
 
