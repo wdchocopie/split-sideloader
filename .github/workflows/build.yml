@@ -59,15 +59,16 @@ jobs:
         # The on-device tests need a phone; building them here at least keeps them compiling.
         run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebugAndroidTest
 
-      # The reference images were recorded on Windows; font rasterising can differ by a few
-      # pixels on Linux, so a mismatch is reported with its images rather than failing the build.
+      # The reference images are recorded on Windows and match on Linux since the clock, zone
+      # and date locale are pinned, so a mismatch fails pushes and pull requests. A release is
+      # never held back by it: a runner image update can shift font rasterising by a few pixels.
       - name: Compare screens with the recorded ones
         id: screens
-        continue-on-error: true
+        continue-on-error: ${{ startsWith(github.ref, 'refs/tags/') }}
         run: ./gradlew --no-daemon :app:verifyPaparazziDebug
 
       - name: Keep the screen differences
-        if: steps.screens.outcome == 'failure'
+        if: always() && steps.screens.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: screen-differences

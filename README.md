@@ -438,9 +438,10 @@ OTA kiểm. Không có `keystore.properties` thì bản release ra chưa ký.
 `v*`, và khi bấm chạy tay trong tab Actions:
 
 1. Test JVM và render toàn bộ màn hình (`testDebugUnitTest`).
-2. So màn hình với ảnh gốc (`verifyPaparazziDebug`). Ảnh gốc chụp trên Windows, font trên
-   Linux có thể lệch vài điểm ảnh, nên sai khác chỉ được báo kèm ảnh so sánh chứ không làm
-   hỏng build.
+2. So màn hình với ảnh gốc (`verifyPaparazziDebug`). Ảnh gốc chụp trên Windows; từ 1.5.4 giờ,
+   múi giờ và định dạng ngày được ghim nên ảnh khớp cả trên Linux. Sai khác làm **hỏng build
+   của main và pull request**, kèm ảnh so sánh trong Artifacts; riêng build từ tag thì chỉ báo,
+   để một lần cập nhật runner làm lệch font vài điểm ảnh không chặn được bản phát hành.
 3. Có khóa ký trong Secrets thì build bản ký + `ota.json`, rồi **kiểm chứng chỉ ký phải đúng**
    `a9aeaf96…` — sai khóa là dừng, vì một bản ký khóa khác sẽ bị mọi máy đã cài từ chối.
    Không có khóa thì build bản chưa ký để thử.
