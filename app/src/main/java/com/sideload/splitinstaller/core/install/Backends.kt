@@ -49,6 +49,12 @@ data class DeviceReport(
     val freeDataBytes: Long,
     val totalDataBytes: Long,
     val freeExternalBytes: Long,
+    /** Android's own background restriction, which MIUI-style skins switch on for new apps. */
+    val backgroundRestricted: Boolean = false,
+    /** The system confirmation keeps base.apk only (see [RomQuirks]). */
+    val installerDropsSplits: Boolean = false,
+    /** The skin has a per-app autostart switch, off unless turned on. */
+    val hasAutostartSettings: Boolean = false,
 ) {
     val best: Capability? get() = capabilities.firstOrNull { it.state == BackendState.READY }
     val silentAvailable: Boolean get() = capabilities.any { it.state == BackendState.READY && it.silent }
@@ -166,8 +172,17 @@ object BackendResolver {
             freeDataBytes = freeBytes(data),
             totalDataBytes = totalBytes(data),
             freeExternalBytes = freeBytes(Environment.getExternalStorageDirectory()),
+            backgroundRestricted = backgroundRestricted(context),
+            installerDropsSplits = RomQuirks.installerDropsSplits(context),
+            hasAutostartSettings = RomQuirks.autostartSettings(context) != null,
         )
     }
+
+    /** "Restrict background activity": no jobs, alarms or services while the app is closed. */
+    fun backgroundRestricted(context: Context): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && runCatching {
+            context.getSystemService(android.app.ActivityManager::class.java).isBackgroundRestricted
+        }.getOrDefault(false)
 
     fun shellFor(kind: BackendKind): Shell? = when (kind) {
         BackendKind.SHIZUKU -> ShizukuShell

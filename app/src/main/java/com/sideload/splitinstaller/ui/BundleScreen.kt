@@ -76,6 +76,8 @@ import com.sideload.splitinstaller.core.bundle.Severity
 import com.sideload.splitinstaller.core.bundle.SplitApk
 import com.sideload.splitinstaller.core.bundle.SplitKind
 import com.sideload.splitinstaller.core.install.BackendKind
+import com.sideload.splitinstaller.core.install.BackendState
+import com.sideload.splitinstaller.core.install.DeviceReport
 import com.sideload.splitinstaller.core.install.InstallOutcome
 import com.sideload.splitinstaller.core.sign.SignatureMatch
 import com.sideload.splitinstaller.core.verify.Verdict
@@ -90,6 +92,9 @@ class BundleActions(
     val onReverify: () -> Unit = {},
     val onLaunch: (String) -> Unit = {},
     val onBackupToggle: (Boolean) -> Unit = {},
+    /** Brings back a confirmation dialog that was left without an answer. */
+    val onShowConfirm: () -> Unit = {},
+    val onCancelInstall: () -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -137,7 +142,8 @@ fun BundleScreen(state: UiState, backend: BackendKind?, actions: BundleActions) 
             item(key = "signature") { SignatureCard(state, info, actions) }
 
             if (state.repairSplits.isNotEmpty() && !state.installing) {
-                item(key = "repair") { RepairCard(state.repairSplits, actions.onRepair) }
+                val dropsSplits = backend == BackendKind.PACKAGE_INSTALLER && state.device?.installerDropsSplits == true
+                item(key = "repair") { RepairCard(state.repairSplits, dropsSplits, state.device, actions.onRepair) }
             }
 
             if (info.findings.isNotEmpty()) {
@@ -326,7 +332,7 @@ private fun StatusLine(icon: ImageVector, tone: Tone, text: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RepairCard(splits: List<SplitApk>, onRepair: () -> Unit) {
+private fun RepairCard(splits: List<SplitApk>, dropsSplits: Boolean, device: DeviceReport?, onRepair: () -> Unit) {
     AppCard(color = Tone.INFO.container(), contentColor = Tone.INFO.onContainer()) {
         Row(verticalAlignment = Alignment.Top) {
             Box(
@@ -342,6 +348,14 @@ private fun RepairCard(splits: List<SplitApk>, onRepair: () -> Unit) {
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             splits.forEach { MetaPill(it.splitName.orEmpty() + " · " + humanSize(it.size), mono = true) }
+        }
+        // The same dialog that dropped the splits would handle the repair.
+        if (dropsSplits) {
+            Text(
+                romDropsSplitsHint(device),
+                style = MaterialTheme.typography.bodySmall,
+                color = Tone.DANGER.accent(),
+            )
         }
         Button(
             onClick = onRepair,
@@ -517,7 +531,7 @@ private fun InstallBar(state: UiState, info: BundleInfo, backend: BackendKind?, 
             }
             AnimatedContent(targetState = phase, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "bar") { p ->
                 when (p) {
-                    1 -> ProgressBarContent(state)
+                    1 -> ProgressBarContent(state, actions)
                     2 -> DoneBarContent(state, actions)
                     3 -> FailedBarContent(state, actions)
                     else -> IdleBarContent(state, info, backend, actions)
@@ -527,44 +541,68 @@ private fun InstallBar(state: UiState, info: BundleInfo, backend: BackendKind?, 
     }
 }
 
+/** What to do about a dialog that drops splits, from where Shizuku and root stand right now. */
+@Composable
+private fun romDropsSplitsHint(device: DeviceReport?): String {
+    val shizuku = device?.capabilities?.firstOrNull { it.kind == BackendKind.SHIZUKU }?.state
+    return stringResource(
+        when {
+            device?.silentBackend != null -> R.string.bar_rom_drops_splits_ready
+            shizuku == BackendState.NEEDS_ACTION -> R.string.bar_rom_drops_splits_grant
+            else -> R.string.bar_rom_drops_splits
+        }
+    )
+}
+
 @Composable
 private fun IdleBarContent(state: UiState, info: BundleInfo, backend: BackendKind?, actions: BundleActions) {
     val selected = info.apks.filter { it.id in state.selection }
     val blocked = state.selectionProblems.any { it.severity == Severity.ERROR }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
+    Column {
+        // This phone's dialog keeps base.apk only: say so before the splits are lost, not after.
+        if (backend == BackendKind.PACKAGE_INSTALLER && selected.size > 1 && state.device?.installerDropsSplits == true) {
             Text(
-                stringResource(R.string.bar_summary, selected.size, humanSize(selected.sumOf { it.size })),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                stringResource(
-                    when (backend) {
-                        BackendKind.SHIZUKU -> R.string.bar_via_shizuku
-                        BackendKind.ROOT -> R.string.bar_via_root
-                        BackendKind.PACKAGE_INSTALLER -> R.string.bar_via_normal
-                        null -> R.string.bar_no_backend
-                    }
-                ),
+                romDropsSplitsHint(state.device),
                 style = MaterialTheme.typography.bodySmall,
-                color = if (backend == null) Tone.DANGER.accent() else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Tone.DANGER.accent(),
+                modifier = Modifier.padding(bottom = 10.dp),
             )
         }
-        Spacer(Modifier.width(12.dp))
-        Button(
-            onClick = { actions.onInstall(false) },
-            enabled = !blocked && selected.isNotEmpty() && backend != null,
-            contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
-        ) {
-            Icon(Icons.Rounded.InstallMobile, null, Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.action_install))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.bar_summary, selected.size, humanSize(selected.sumOf { it.size })),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    stringResource(
+                        when (backend) {
+                            BackendKind.SHIZUKU -> R.string.bar_via_shizuku
+                            BackendKind.ROOT -> R.string.bar_via_root
+                            BackendKind.PACKAGE_INSTALLER -> R.string.bar_via_normal
+                            null -> R.string.bar_no_backend
+                        }
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (backend == null) Tone.DANGER.accent() else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Button(
+                onClick = { actions.onInstall(false) },
+                enabled = !blocked && selected.isNotEmpty() && backend != null,
+                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
+            ) {
+                Icon(Icons.Rounded.InstallMobile, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.action_install))
+            }
         }
     }
 }
 
 @Composable
-private fun ProgressBarContent(state: UiState) {
+private fun ProgressBarContent(state: UiState, actions: BundleActions) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -591,11 +629,26 @@ private fun ProgressBarContent(state: UiState) {
             gapSize = 0.dp,
             drawStopIndicator = {},
         )
-        Text(
-            stringResource(if (state.repairing) R.string.bar_repairing_hint else R.string.bar_installing_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (state.awaitingConfirm) {
+            // The dialog belongs to the system and can be closed without an answer; on some
+            // skins nothing ever reports that, so the way back has to be here.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.bar_awaiting_confirm),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = actions.onShowConfirm) { Text(stringResource(R.string.action_show_again)) }
+                TextButton(onClick = actions.onCancelInstall) { Text(stringResource(R.string.action_cancel)) }
+            }
+        } else {
+            Text(
+                stringResource(if (state.repairing) R.string.bar_repairing_hint else R.string.bar_installing_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

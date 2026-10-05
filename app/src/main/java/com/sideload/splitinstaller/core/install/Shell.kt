@@ -1,6 +1,7 @@
 package com.sideload.splitinstaller.core.install
 
 import rikka.shizuku.Shizuku
+import rikka.shizuku.ShizukuRemoteProcess
 import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 
@@ -60,7 +61,7 @@ private fun drive(
         writeError = t
     }
 
-    val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+    val finished = waitFor(process, timeoutSeconds)
     if (!finished) {
         process.destroyForcibly()
         return ShellResult(-1, out.toString(), "timed out after ${timeoutSeconds}s")
@@ -74,6 +75,19 @@ private fun drive(
     }
     return ShellResult(code, out.toString().trim(), err.toString().trim())
 }
+
+/**
+ * Shizuku's remote process does not override `waitFor(long, TimeUnit)`. The inherited one
+ * polls `exitValue()` and expects IllegalThreadStateException while the command runs, but
+ * over Binder that arrives as a different exception, so every command failed straight away
+ * with "process hasn't exited". Its own timed wait does the same job remotely.
+ */
+private fun waitFor(process: Process, timeoutSeconds: Long): Boolean =
+    if (process is ShizukuRemoteProcess) {
+        process.waitForTimeout(timeoutSeconds, TimeUnit.SECONDS)
+    } else {
+        process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+    }
 
 object RootShell : Shell {
     override val id = "root"

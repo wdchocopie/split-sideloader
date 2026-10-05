@@ -50,7 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.core.graphics.drawable.toBitmap
+import com.sideload.splitinstaller.R
 import com.sideload.splitinstaller.core.bundle.BundleFormat
 import com.sideload.splitinstaller.core.bundle.IconBytes
 import com.sideload.splitinstaller.core.bundle.Severity
@@ -481,7 +483,11 @@ fun humanSize(bytes: Long): String = when {
     else -> "$bytes B"
 }
 
-fun relativeTime(time: Long, now: Long = System.currentTimeMillis()): String =
-    runCatching {
+/** "5 min. ago"; under a minute DateUtils would say "0 min. ago", so that reads "just now". */
+@Composable
+fun relativeTime(time: Long, now: Long = System.currentTimeMillis()): String {
+    if (kotlin.math.abs(now - time) < DateUtils.MINUTE_IN_MILLIS) return stringResource(R.string.just_now)
+    return runCatching {
         DateUtils.getRelativeTimeSpanString(time, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
     }.getOrDefault("")
+}

@@ -77,6 +77,8 @@ data class UiState(
     val repairing: Boolean = false,
     val progress: Float = 0f,
     val progressLabel: String = "",
+    /** The system's confirmation is up (or was left); it can be shown again or cancelled. */
+    val awaitingConfirm: Boolean = false,
     val outcome: InstallOutcome? = null,
     val verifyReport: VerifyReport? = null,
     val error: String? = null,
@@ -443,6 +445,7 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
                 when (event) {
                     is InstallEvent.Log -> EventLog.add(event.severity, event.message)
                     is InstallEvent.AwaitingConfirmation -> otaPendingConfirm = event.confirm
+                    is InstallEvent.Answered -> otaPendingConfirm = null
                     is InstallEvent.Progress -> Unit
                 }
             }
@@ -530,9 +533,21 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
                 is InstallEvent.Progress -> _state.update {
                     it.copy(progress = event.fraction.coerceIn(0f, 1f), progressLabel = event.label)
                 }
-                is InstallEvent.AwaitingConfirmation -> Unit
+                is InstallEvent.AwaitingConfirmation -> {
+                    installConfirm = event.confirm
+                    installSession = event.sessionId
+                    _state.update { it.copy(awaitingConfirm = true) }
+                }
+                // Answered while the OBBs and checks still run: Show again and Cancel go away now.
+                is InstallEvent.Answered -> {
+                    installConfirm = null
+                    installSession = null
+                    _state.update { it.copy(awaitingConfirm = false) }
+                }
             }
         }
+        installConfirm = null
+        installSession = null
 
         when (outcome) {
             is InstallOutcome.Ok -> EventLog.info(if (repair) "repair finished" else "install finished")
@@ -549,6 +564,7 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
         _state.update {
             it.copy(
                 installing = false,
+                awaitingConfirm = false,
                 progress = 1f,
                 outcome = outcome,
                 verifyReport = (outcome as? InstallOutcome.Ok)?.report,
@@ -556,6 +572,27 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
                 signatureMatch = match,
                 repairSplits = repairCandidates(info, installed, it.selection),
             )
+        }
+        // An install can teach the app something about this phone's installer.
+        refreshCapabilities()
+    }
+
+    /** The install's confirmation dialog, which can be closed without an answer. */
+    @Volatile private var installConfirm: Intent? = null
+    @Volatile private var installSession: Int? = null
+
+    fun showInstallConfirm() {
+        val confirm = installConfirm ?: return
+        runCatching { getApplication<Application>().startActivity(Intent(confirm)) }
+            .onFailure { EventLog.warn("could not show the confirmation again: " + it.message) }
+    }
+
+    /** Abandons the waiting session; the install then ends as cancelled. */
+    fun cancelInstall() {
+        val id = installSession ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { getApplication<Application>().packageManager.packageInstaller.abandonSession(id) }
+                .onFailure { EventLog.warn("could not cancel the install: " + it.message) }
         }
     }
 

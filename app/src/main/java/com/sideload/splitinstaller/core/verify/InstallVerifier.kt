@@ -10,6 +10,7 @@ import com.sideload.splitinstaller.core.axml.NativeEngine
 import com.sideload.splitinstaller.core.bundle.Finding
 import com.sideload.splitinstaller.core.bundle.FindingCode
 import com.sideload.splitinstaller.core.bundle.Severity
+import com.sideload.splitinstaller.core.install.RomQuirks
 import com.sideload.splitinstaller.core.install.Shell
 import com.sideload.splitinstaller.core.zip.ZipReader
 import java.io.File
@@ -79,6 +80,8 @@ object InstallVerifier {
         expectNativeLibs: Boolean? = null,
         expectedSplits: Collection<String> = emptyList(),
         shell: Shell? = null,
+        /** The phone's own installer, when it was seen installing the package in our place. */
+        takenOverBy: String? = null,
     ): VerifyReport {
         val pm = context.packageManager
         val pkgInfo = runCatching { pm.getPackageInfo(packageName, 0) }.getOrNull()
@@ -222,7 +225,8 @@ object InstallVerifier {
             )
         }
 
-        if (manifest?.declaresSplitsRequired == true && splitNames.isEmpty()) {
+        val baseOnly = manifest?.declaresSplitsRequired == true && splitNames.isEmpty()
+        if (baseOnly) {
             worsen(Verdict.BROKEN)
             findings += Finding(
                 Severity.ERROR,
@@ -241,6 +245,33 @@ object InstallVerifier {
                 FindingCode.SPLITS_MISSING,
                 listOf(missing.joinToString()),
             )
+        }
+
+        val installer = installerOfRecord(context, packageName)
+        if (baseOnly || missing.isNotEmpty()) {
+            if (takenOverBy != null) {
+                // Seen happening during this install. The cause goes first: the result card
+                // leads with the first error.
+                findings.add(
+                    0,
+                    Finding(
+                        Severity.ERROR,
+                        "the phone's own installer ($takenOverBy) installed the package by itself and " +
+                            "dropped its splits; install bundles on this phone with Shizuku or root",
+                        FindingCode.ROM_INSTALLER,
+                        listOf(takenOverBy),
+                    ),
+                )
+            } else if (installer != null && RomQuirks.droppedBy(installer, RomQuirks.takeover(context))) {
+                // Not seen, only likely: the same installer also takes a single APK on purpose.
+                findings += Finding(
+                    Severity.WARN,
+                    "installed by $installer, this phone's own installer, which is known to keep only " +
+                        "base.apk from a bundle; install bundles on this phone with Shizuku or root",
+                    FindingCode.ROM_INSTALLER_LIKELY,
+                    listOf(installer),
+                )
+            }
         }
 
         val isSystem = (ai.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
@@ -264,7 +295,7 @@ object InstallVerifier {
             engine = engine,
             nativeExpected = nativeExpected,
             declaresSplitsRequired = manifest?.declaresSplitsRequired == true,
-            installerPackage = installerOfRecord(context, packageName),
+            installerPackage = installer,
             firstInstallTime = pkgInfo.firstInstallTime,
             lastUpdateTime = pkgInfo.lastUpdateTime,
             isSystem = isSystem,

@@ -72,11 +72,15 @@ Máy không root thì Shizuku phải khởi động lại qua ADB sau mỗi lầ
 pkg install android-tools
 adb pair 127.0.0.1:PAIRING_PORT
 adb connect 127.0.0.1:CONNECT_PORT
-adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh
+adb shell 'P=$(pm path moe.shizuku.privileged.api); $(dirname ${P#package:})/lib/*/libshizuku.so'
 ```
 
 Màn hình ghép nối và màn hình chính hiện **hai cổng khác nhau** — dùng đúng cổng ở đúng
 chỗ. Lệnh này có sẵn trong tab Tùy chọn của app, bấm là copy.
+
+Shizuku 13.6 trở đi không còn `start.sh` trong `/sdcard/Android/data/…`; lệnh trên chạy thẳng
+`libshizuku.so` nằm cạnh APK của Shizuku (đã thử với 13.6 trên Black Shark 4 Pro). Bản
+Shizuku cũ còn `start.sh` thì lệnh `adb shell sh …/start.sh` quen thuộc vẫn dùng được.
 
 ---
 
@@ -96,6 +100,35 @@ liệu mẫu đúng tình huống app sinh ra để xử lý: ZZZ cài qua QooAp
 ---
 
 ## Tính năng
+
+### Mới trong 1.5.3 — thử trên máy thật: Black Shark 4 Pro (JoyUI, nhân MIUI)
+
+Bản này sửa những gì một chiếc máy thật chạy ROM Trung Quốc lôi ra:
+
+- **Đường Shizuku chạy lại được.** Từ trước tới 1.5.2, mọi lệnh qua Shizuku đều hỏng ngay
+  ("process hasn't exited"): `ShizukuRemoteProcess` không có `waitFor(timeout)` riêng, bản
+  thừa kế không chạy qua Binder. Cài im lặng, sửa split, tự cập nhật nền qua Shizuku giờ
+  mới thật sự chạy. APK hỏng/cụt trên đường shell cũng bị chặn trước khi commit.
+- **Bộ cài của máy tự ý cài và bỏ split.** Trình cài `com.blackshark.packageinstaller` không
+  xác nhận phiên cài của app mà copy riêng `base.apk` ra rồi tự cài — mọi split mất, phiên
+  của app không bao giờ có hồi âm (1.5.2 treo tới 20 phút). Giờ app nhận ra trong vài giây,
+  bỏ phiên, và màn kết quả ghi rõ **bộ cài của máy đã bỏ split**, kèm cách khắc phục:
+  dùng Shizuku hoặc root. Trước khi cài gói nhiều APK qua hộp thoại trên máy như vậy, thanh
+  cài hiện cảnh báo đỏ; thẻ "Sửa" cũng cảnh báo tương tự.
+- **Hộp thoại bị đóng ngang.** Bấm Home khi hộp thoại xác nhận đang mở thì app hiện "Đang chờ
+  xác nhận" với hai nút **Hiện lại** và **Hủy** thay vì đứng chờ. Hộp thoại mới luôn mở
+  trong task riêng, nên trang "đã cài xong" cũ của bộ cài không che mất nó nữa.
+- **Tự khởi động & chạy nền trên MIUI.** Tùy chọn có nút **Mở Tự khởi động** (không bật thì
+  app không tự mở lại sau khi cập nhật), và cảnh báo khi hệ thống đang hạn chế chạy nền dù
+  đã tắt tối ưu pin. Trang cấp quyền "cài app không rõ nguồn" trên MIUI mở cả danh sách
+  thay vì đúng app — app nhắc tìm "Split Sideloader" trong đó.
+- Lặt vặt: APK đơn hiện tên app thay vì tên gói, "vừa xong" thay vì "0 phút trước", nguồn tải
+  ghi theo trang (apkmirror.com) thay vì tên CDN.
+
+> **Cập nhật từ 1.5.0–1.5.2 khi Shizuku đang chạy:** nút Cập nhật của bản cũ đi đường
+> Shizuku (đường đang hỏng ở bản cũ) và sẽ báo lỗi. Hãy tắt Shizuku (hoặc khởi động lại máy)
+> rồi bấm Cập nhật để đi qua hộp thoại thường, hoặc tải APK ở trang Releases và cài tay.
+> Từ 1.5.3 trở đi không còn vướng chuyện này.
 
 ### Mới trong 1.5 — chọn ngôn ngữ trong app
 
@@ -318,7 +351,9 @@ Hai dòng cuối không phải thiếu sót của app: một là điều khoản
 Android bắt buộc. Còn lại chạy không cần chạm.
 
 Trên các ROM hay đóng băng tiến trình nền (Xiaomi, Oppo, Vivo, Samsung…), Tùy chọn có
-nút **Cho phép chạy nền** — không bật thì hệ thống có thể bỏ qua hết lịch kiểm tra.
+nút **Cho phép chạy nền** — không bật thì hệ thống có thể bỏ qua hết lịch kiểm tra. Trên
+MIUI và các ROM dựa trên nó (JoyUI của Black Shark…) còn có nút **Mở Tự khởi động**: công tắc
+này tắt sẵn cho app mới cài, và khi tắt thì app không tự mở lại sau khi tự cập nhật.
 
 ---
 
@@ -458,7 +493,8 @@ Test chạy trên JVM, không cần máy Android:
 | `VersionCompareTest` | So chuỗi phiên bản: `1.10 > 1.9`, pre-release, trả về “không so được” |
 | `UpdateCheckerTest` | Đọc JSON thật của F-Droid và GitHub, chọn asset theo ABI, rút gọn link repo |
 | `OtaTest` | Nhận diện kênh (chặn http), đọc manifest, so phiên bản của chính app |
-| `ScreenshotTest` | 25 màn hình, sáng/tối/AMOLED, tiếng Việt + English, so với ảnh gốc |
+| `RomQuirksTest` | Khi nào coi là bộ cài của máy "chiếm" phiên cài, và khi nào được đổ lỗi cho nó |
+| `ScreenshotTest` | 27 màn hình, sáng/tối/AMOLED, tiếng Việt + English, so với ảnh gốc |
 
 ---
 
@@ -477,6 +513,10 @@ Nói rõ để khỏi mất công:
   rồi mở đúng trang**; bạn bấm tải, sau đó app tự cài và kiểm chứng như bình thường.
 - **Cài im lặng khi không có Shizuku/root.** Android bắt hiện hộp thoại xác nhận cho mọi
   lần cài của phần mềm thường. Gói tải xong sẽ nằm chờ trong thông báo, chạm là cài.
+- **Bộ cài của ROM bỏ split.** Có máy (đã gặp: Black Shark/JoyUI) mà hộp thoại xác nhận của
+  hệ thống tự cài riêng `base.apk` thay vì phiên cài của app. App không thể ép hộp thoại đó
+  làm đúng — chỉ phát hiện, cảnh báo trước và báo rõ sau. Trên những máy này, gói nhiều APK
+  phải cài bằng Shizuku hoặc root.
 - **Google Play từ chối máy.** Đó là device targeting phía nhà phát hành cộng với chứng nhận
   Play Protect. Sideload đi vòng qua được, nhưng đó là chuyện khác với vấn đề cài đặt.
 

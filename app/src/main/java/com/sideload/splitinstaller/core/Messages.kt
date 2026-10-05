@@ -35,6 +35,8 @@ fun findingRes(code: String?): Int? = when (code) {
     FindingCode.NO_NATIVE_EXPECTED -> R.string.f_no_native_expected
     FindingCode.BASE_ONLY -> R.string.f_base_only
     FindingCode.SPLITS_MISSING -> R.string.f_splits_missing
+    FindingCode.ROM_INSTALLER -> R.string.f_rom_installer
+    FindingCode.ROM_INSTALLER_LIKELY -> R.string.f_rom_installer_likely
     else -> null
 }
 

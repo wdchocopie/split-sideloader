@@ -104,7 +104,9 @@ object Downloads {
         val dm = context.getSystemService(DownloadManager::class.java)
         val name = DownloadNames.fileName(request.url, request.contentDisposition, request.mimeType)
         val uri = Uri.parse(request.url)
-        val host = uri.host?.removePrefix("www.")
+        // Named after the page the button was on: the file itself often comes from a CDN.
+        val page = request.referer?.takeIf { it.startsWith("https://") }?.let { Uri.parse(it).host }
+        val host = (page ?: uri.host)?.removePrefix("www.")
 
         val req = DownloadManager.Request(uri)
             .setTitle(name)

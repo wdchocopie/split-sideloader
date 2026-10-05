@@ -93,7 +93,7 @@ object BundleInspector {
     fun inspect(context: Context, uri: Uri): BundleInfo {
         val name = displayName(context, uri)
         val source = openSource(context, uri)
-        return try {
+        val info = try {
             if (name.lowercase(Locale.ROOT).endsWith(".apk")) {
                 singleApk(uri, name, source)
             } else {
@@ -102,7 +102,16 @@ object BundleInspector {
         } finally {
             source.close()
         }
+        // A plain APK names itself only through resources this reader does not parse; an update
+        // can still borrow the name of the copy already on the device.
+        if (info.appLabel != null || info.packageName == null) return info
+        return info.copy(appLabel = installedLabel(context, info.packageName))
     }
+
+    private fun installedLabel(context: Context, packageName: String): String? = runCatching {
+        val pm = context.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString().ifBlank { null }
+    }.getOrNull()
 
     private fun singleApk(uri: Uri, name: String, source: DataSource): BundleInfo {
         val zip = ZipReader(source, ownsSource = false)

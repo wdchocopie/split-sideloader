@@ -113,6 +113,8 @@ object FindingCode {
     const val NO_NATIVE_EXPECTED = "v_no_native_expected"
     const val BASE_ONLY = "v_base_only"
     const val SPLITS_MISSING = "v_splits_missing"
+    const val ROM_INSTALLER = "v_rom_installer"
+    const val ROM_INSTALLER_LIKELY = "v_rom_installer_likely"
 }
 
 data class BundleInfo(

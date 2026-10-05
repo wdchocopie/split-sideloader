@@ -193,6 +193,22 @@ class ScreenshotTest {
         BundleScreen(Samples.bundleRepair, BackendKind.PACKAGE_INSTALLER, BundleActions())
     }
 
+    @Test fun bundle_light_awaiting_confirm() = shot("bundle_light_awaiting_confirm", dark = false) {
+        BundleScreen(
+            Samples.bundleIdle.copy(installing = true, progress = 1f, progressLabel = "committing", awaitingConfirm = true),
+            BackendKind.PACKAGE_INSTALLER,
+            BundleActions(),
+        )
+    }
+
+    @Test fun bundle_dark_rom_drops_splits() = shot("bundle_dark_rom_drops_splits", dark = true) {
+        BundleScreen(
+            Samples.bundleIdle.copy(device = Samples.device.copy(installerDropsSplits = true)),
+            BackendKind.PACKAGE_INSTALLER,
+            BundleActions(),
+        )
+    }
+
     // ---- apps -------------------------------------------------------------------------------
 
     @Test fun apps_light() = shot("apps_light", dark = false) {
@@ -310,6 +326,8 @@ private object Samples {
         freeDataBytes = 61_400 * MB,
         totalDataBytes = 227_000 * MB,
         freeExternalBytes = 61_400 * MB,
+        backgroundRestricted = true,
+        hasAutostartSettings = true,
     )
 
     private val playCert = CertInfo(

@@ -306,6 +306,8 @@
     <string name="f_no_native_expected">App không cần mã máy, nên không có gì liên quan ABI để kiểm tra.</string>
     <string name="f_base_only">Manifest khai báo cần split nhưng chỉ có base.apk được cài. Mọi split đã bị bỏ — đúng lỗi của các store client.</string>
     <string name="f_splits_missing">Thiếu split sau khi cài: %1$s</string>
+    <string name="f_rom_installer">Bộ cài có sẵn của máy (%1$s) đã tự cài app và bỏ mất các split. Trên máy này, hãy cài gói bằng Shizuku hoặc root.</string>
+    <string name="f_rom_installer_likely">Được cài bởi %1$s, bộ cài có sẵn của máy, vốn chỉ giữ base.apk khi cài gói. Trên máy này, hãy cài gói bằng Shizuku hoặc root.</string>
 
     <!-- why a split was picked -->
     <string name="note_base">gói nền, luôn được cài</string>
@@ -487,7 +489,7 @@
     <string name="ota_attempt_failed">Tự cài hai lần liên tiếp không thành, nên app đã thôi tự thử. Bấm cài tay một lần để xem lỗi.</string>
     <string name="ota_card_title">Đã có Split Sideloader %1$s</string>
     <string name="ota_card_from">Bản đang chạy là %1$s.</string>
-    <string name="ota_needs_tap">Đã kiểm xong. Không có Shizuku hay root thì Android cần bạn bấm một lần để thay app đang chạy.</string>
+    <string name="ota_needs_tap">Đã kiểm xong. Không có Shizuku hay root thì máy sẽ hỏi một lần trước khi thay app đang chạy. Có máy đặt lời mời cài từ chợ của hãng lên đầu — nút cần bấm là Cài đặt, Cập nhật hoặc Tiếp tục.</string>
     <string name="ota_explainer">Bản nào cũng phải đúng gói này, có versionCode cao hơn, và ký cùng khóa với bản đang chạy — không thì bị từ chối trước khi cài, dù kênh nói gì.</string>
     <string name="ota_notif_title">Có bản Split Sideloader mới</string>
     <string name="ota_notif_body">Kênh cập nhật đang có bản %1$s.</string>
@@ -508,4 +510,16 @@
     <string name="language_vi">Tiếng Việt</string>
     <string name="language_en">English</string>
     <string name="language_desc">Chỉ áp dụng cho app này, không phụ thuộc ngôn ngữ máy. Nhật ký vẫn giữ tiếng Anh để dán vào báo lỗi còn đọc được.</string>
+
+    <!-- 1.5.3: what a real phone with a MIUI-based skin showed -->
+    <string name="just_now">vừa xong</string>
+    <string name="bar_awaiting_confirm">Đang chờ bạn xác nhận trên hộp thoại cài của máy</string>
+    <string name="action_show_again">Hiện lại</string>
+    <string name="bar_rom_drops_splits">Trình cài của máy này chỉ giữ base.apk và bỏ mọi split. Hãy bật Shizuku để cài gói split trên máy này.</string>
+    <string name="bar_rom_drops_splits_ready">Trình cài của máy này chỉ giữ base.apk và bỏ mọi split. Đã có cách cài im lặng sẵn sàng: hãy chọn nó trong Tùy chọn.</string>
+    <string name="bar_rom_drops_splits_grant">Trình cài của máy này chỉ giữ base.apk và bỏ mọi split. Shizuku đang chạy: hãy cho phép Split Sideloader trong Shizuku để cài gói trên máy này.</string>
+    <string name="updates_background_restricted">Hệ thống đang hạn chế app chạy nền, nên việc kiểm tra định kỳ và tự cập nhật có thể không bao giờ chạy. Hãy chọn Không hạn chế cho mức dùng pin của app.</string>
+    <string name="updates_autostart_hint">Trên các hệ thống dựa trên MIUI, app còn cần quyền Tự khởi động: thiếu nó thì khi app đóng sẽ không có gì chạy, và app không tự mở lại sau khi tự cập nhật.</string>
+    <string name="updates_autostart_action">Mở Tự khởi động</string>
+    <string name="install_permission_find_hint">Tìm Split Sideloader trong danh sách rồi bật cho phép</string>
 </resources>

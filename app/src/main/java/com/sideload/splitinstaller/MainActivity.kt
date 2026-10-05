@@ -53,6 +53,7 @@ import com.sideload.splitinstaller.core.install.BackendKind
 import com.sideload.splitinstaller.core.install.BackendState
 import com.sideload.splitinstaller.core.install.Capability
 import com.sideload.splitinstaller.core.install.InstallOutcome
+import com.sideload.splitinstaller.core.install.RomQuirks
 import com.sideload.splitinstaller.core.Languages
 import com.sideload.splitinstaller.core.log.EventLog
 import com.sideload.splitinstaller.core.ota.OtaChannel
@@ -305,6 +306,8 @@ class MainActivity : ComponentActivity() {
                             onReverify = vm::reverify,
                             onLaunch = ::launchApp,
                             onBackupToggle = vm::setBackupFirst,
+                            onShowConfirm = vm::showInstallConfirm,
+                            onCancelInstall = vm::cancelInstall,
                         ),
                     )
                     3 -> sources.browser?.let { target ->
@@ -507,6 +510,7 @@ class MainActivity : ComponentActivity() {
                                 toast(getString(R.string.history_cleared))
                             },
                             onBatteryExempt = ::requestBatteryExemption,
+                            onAutostart = ::openAutostart,
                             onOtaCheck = vm::checkOta,
                             onOtaUpdate = vm::updateOta,
                         ),
@@ -589,6 +593,13 @@ class MainActivity : ComponentActivity() {
         val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
         runCatching { openSettings.launch(intent) }
             .onFailure { openSettings.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)) }
+        // MIUI-style skins ignore the package and open the whole list.
+        if (RomQuirks.autostartSettings(this) != null) toast(getString(R.string.install_permission_find_hint))
+    }
+
+    private fun openAutostart() {
+        val intent = RomQuirks.autostartSettings(this) ?: return
+        runCatching { startActivity(intent) }.onFailure { openAppInfo(packageName) }
     }
 
     private fun requestStorage() {
@@ -628,7 +639,6 @@ class MainActivity : ComponentActivity() {
         runCatching { uninstall.launch(intent) }.onFailure { toast(it.message ?: "uninstall failed") }
     }
 
-    /** Aggressive ROMs freeze background work; this is the switch that stops them. */
     /** How far this app's own download is, or null when none is under way. */
     private fun otaProgress(downloads: List<com.sideload.splitinstaller.core.sources.DownloadItem>): Float? =
         downloads.firstOrNull { it.active && !it.waitingForWifi && it.expectedPackage == packageName }
@@ -657,6 +667,7 @@ class MainActivity : ComponentActivity() {
         return apps.copy(updates = apps.updates + (packageName to own))
     }
 
+    /** Aggressive ROMs freeze background work; this is the switch that stops them. */
     private fun requestBatteryExemption() {
         val direct = Intent(
             Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,

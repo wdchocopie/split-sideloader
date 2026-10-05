@@ -25,12 +25,16 @@ import com.sideload.splitinstaller.core.zip.DataSource
 import com.sideload.splitinstaller.core.zip.ZipEntryInfo
 import com.sideload.splitinstaller.core.zip.ZipReader
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import java.io.EOFException
+import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.CRC32
+import java.util.zip.ZipException
 
 data class InstallRequest(
     val info: BundleInfo,
@@ -54,12 +58,24 @@ sealed interface InstallEvent {
     data class Log(val severity: Severity, val message: String) : InstallEvent
     data class Progress(val fraction: Float, val label: String) : InstallEvent
 
-    /** The system's confirmation dialog for this install; it can be shown again if it was left. */
-    data class AwaitingConfirmation(val confirm: Intent) : InstallEvent
+    /**
+     * The system's confirmation dialog for this install; it can be shown again if it was left,
+     * and abandoning [sessionId] cancels the install.
+     */
+    data class AwaitingConfirmation(val confirm: Intent, val sessionId: Int) : InstallEvent
+
+    /** The confirmation is over: the session answered, or the wait for it ended. */
+    data object Answered : InstallEvent
 }
 
 sealed interface InstallOutcome {
-    data class Ok(val packageName: String?, val report: VerifyReport?, val backupPath: String? = null) : InstallOutcome
+    data class Ok(
+        val packageName: String?,
+        val report: VerifyReport?,
+        val backupPath: String? = null,
+        /** The phone's own installer that was seen installing the package in place of our session. */
+        val takenOverBy: String? = null,
+    ) : InstallOutcome
     data class Failed(val message: String, val hint: String? = null, val code: String? = null) : InstallOutcome
 }
 
@@ -201,7 +217,7 @@ class Installer(private val context: Context) {
                         emit = emit,
                     )
                 }
-                InstallOutcome.Ok(pkg, verify(request, chosen, emit), backupPath)
+                InstallOutcome.Ok(pkg, verify(request, chosen, emit, outcome.takenOverBy), backupPath, outcome.takenOverBy)
             } else {
                 outcome
             }
@@ -285,6 +301,9 @@ class Installer(private val context: Context) {
         emit(InstallEvent.Log(Severity.INFO, "session $sessionId created"))
 
         val events = InstallEvents.register(sessionId)
+        val pkg = request.info.packageName
+        // Taken before the commit, to tell later whether something else installed the package.
+        val before = pkg?.let { lastUpdate(it) }
         try {
             pi.openSession(sessionId).use { session ->
                 var written = 0L
@@ -312,43 +331,134 @@ class Installer(private val context: Context) {
         }
 
         // The commit reports back at least once, and twice when it wants a confirmation.
-        try {
-            repeat(3) {
-                val intent = withTimeoutOrNull(20 * 60 * 1000L) { events.receive() }
-                    ?: return InstallOutcome.Failed("the installer never reported back")
+        var asked = 0
+        // The app behind the confirmation dialog; the dialog's own intent says for certain.
+        var dialog = RomQuirks.systemInstaller(context)
+        fun answer(intent: Intent): InstallOutcome? {
+            val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, Int.MIN_VALUE)
+            emit(InstallEvent.Log(Severity.INFO, InstallEvents.statusMessage(intent)))
+            return when (status) {
+                PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                    if (++asked > 3) return InstallOutcome.Failed("the installer kept asking for confirmation")
+                    val confirm = confirmIntent(intent)
+                        ?: return InstallOutcome.Failed("the system asked for confirmation but sent no dialog")
+                    RomQuirks.dialogOf(context, confirm)?.let { dialog = it }
+                    emit(InstallEvent.Log(Severity.INFO, "waiting for the system confirmation dialog"))
+                    // A fresh task. With NEW_TASK alone, an installer task left open by an earlier
+                    // install (its "installed" page, say) is only brought to the front, and this
+                    // dialog never shows.
+                    confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    emit(InstallEvent.AwaitingConfirmation(Intent(confirm), sessionId))
+                    runCatching { context.startActivity(confirm) }
+                        .onFailure { return InstallOutcome.Failed("could not show the confirmation dialog: ${it.message}") }
+                    null
+                }
 
-                val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, Int.MIN_VALUE)
-                emit(InstallEvent.Log(Severity.INFO, InstallEvents.statusMessage(intent)))
+                PackageInstaller.STATUS_SUCCESS -> {
+                    // The dialog let a session with splits through, so it does not drop them.
+                    if (asked > 0 && expectedSplits(chosen).isNotEmpty()) RomQuirks.forgetTakeover(context)
+                    InstallOutcome.Ok(pkg, null)
+                }
 
-                when (status) {
-                    PackageInstaller.STATUS_PENDING_USER_ACTION -> {
-                        val confirm = confirmIntent(intent)
-                            ?: return InstallOutcome.Failed("the system asked for confirmation but sent no dialog")
-                        emit(InstallEvent.Log(Severity.INFO, "waiting for the system confirmation dialog"))
-                        confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        emit(InstallEvent.AwaitingConfirmation(Intent(confirm)))
-                        runCatching { context.startActivity(confirm) }
-                            .onFailure { return InstallOutcome.Failed("could not show the confirmation dialog: ${it.message}") }
-                    }
-
-                    PackageInstaller.STATUS_SUCCESS -> return InstallOutcome.Ok(request.info.packageName, null)
-
-                    else -> {
-                        val raw = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE).orEmpty()
-                        return InstallOutcome.Failed(
-                            InstallEvents.statusMessage(intent),
-                            hint = InstallEvents.explain(intent),
-                            code = Regex("INSTALL_[A-Z_]+").find(raw)?.value
-                                ?: raw.substringBefore(':').trim().ifBlank { null },
-                        )
-                    }
+                else -> {
+                    val raw = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE).orEmpty()
+                    InstallOutcome.Failed(
+                        InstallEvents.statusMessage(intent),
+                        hint = InstallEvents.explain(intent),
+                        code = Regex("INSTALL_[A-Z_]+").find(raw)?.value
+                            ?: raw.substringBefore(':').trim().ifBlank { null },
+                    )
                 }
             }
-            return InstallOutcome.Failed("the installer kept asking for confirmation")
+        }
+
+        // The skin's own installer did the install and left this session without an answer.
+        fun takenOver(installer: String): InstallOutcome {
+            runCatching { pi.abandonSession(sessionId) }
+            val installed = pkg?.let { InstallVerifier.installedSplits(context, it) }.orEmpty()
+            val dropped = expectedSplits(chosen).any { it !in installed }
+            // Remembered only when it really lost splits, so one odd install cannot flag the phone.
+            if (dropped) RomQuirks.rememberTakeover(context, installer)
+            emit(InstallEvent.Log(
+                Severity.WARN,
+                "the phone's own installer ($installer) installed the package by itself instead of " +
+                    "confirming this session" +
+                    if (dropped) {
+                        "; it takes only base.apk, so splits are missing. " +
+                            "Use Shizuku or root to install bundles on this phone."
+                    } else {
+                        ""
+                    },
+            ))
+            return InstallOutcome.Ok(pkg, null, takenOverBy = installer)
+        }
+
+        // While a confirmation is pending, the wait also looks around: the session may have been
+        // cancelled from the app, or a skin's own installer may have installed the package by
+        // itself and left this session without an answer.
+        val base = chosen.firstOrNull { it.kind == SplitKind.BASE || it.kind == SplitKind.STANDALONE }
+        val deadline = System.currentTimeMillis() + CONFIRM_WAIT_MS
+        try {
+            while (true) {
+                val left = deadline - System.currentTimeMillis()
+                if (left <= 0) return InstallOutcome.Failed("the installer never reported back")
+                val intent = events.next(minOf(left, WAIT_TICK_MS))
+                if (intent != null) {
+                    answer(intent)?.let { return it }
+                    continue
+                }
+                if (asked == 0) continue
+
+                if (runCatching { pi.getSessionInfo(sessionId) }.getOrNull() == null) {
+                    // Gone: abandoned from the app, or finished a moment ago. Its last word may follow.
+                    val last = events.next(LAST_WORD_MS)
+                    if (last != null) {
+                        answer(last)?.let { return it }
+                        continue
+                    }
+                    // That word can lag well behind a finished install, so look at the package
+                    // itself before calling the install cancelled.
+                    val after = pkg?.let { lastUpdate(it) }
+                    if (pkg != null && after != null && after != before) {
+                        takenOverBy(pkg, before, dialog, request.info.versionCode, base)?.let { return takenOver(it) }
+                        if (InstallVerifier.installerOfRecord(context, pkg) == context.packageName) {
+                            emit(InstallEvent.Log(Severity.INFO, "the session ended without reporting back, but the package was installed"))
+                            return InstallOutcome.Ok(pkg, null)
+                        }
+                    }
+                    return InstallOutcome.Failed("the install was cancelled before it was confirmed")
+                }
+
+                val installer = takenOverBy(pkg, before, dialog, request.info.versionCode, base) ?: continue
+                events.next(LAST_WORD_MS)?.let { last ->
+                    answer(last)?.let { return it }
+                }
+                return takenOver(installer)
+            }
         } finally {
             InstallEvents.unregister(sessionId)
+            if (asked > 0) emit(InstallEvent.Answered)
         }
     }
+
+    /**
+     * The installer of [pkg], when the package changed since [before], the installer of record
+     * is the one behind the confirmation dialog ([dialog]) rather than us, and what it installed
+     * is the build our session carried ([version], [base]) rather than some other copy.
+     */
+    private fun takenOverBy(pkg: String?, before: Long?, dialog: String?, version: Long, base: SplitApk?): String? {
+        if (pkg == null) return null
+        val installer = InstallVerifier.installerOfRecord(context, pkg)
+        if (!RomQuirks.tookOver(before, lastUpdate(pkg), installer, context.packageName, dialog)) return null
+        val installedVersion = InstallVerifier.installedVersion(context, pkg)?.first
+        val installedBase = runCatching {
+            File(context.packageManager.getApplicationInfo(pkg, 0).sourceDir).length().takeIf { it > 0 }
+        }.getOrNull()
+        return installer.takeIf { RomQuirks.isOurBuild(installedVersion, version, installedBase, base?.size) }
+    }
+
+    private fun lastUpdate(pkg: String): Long? =
+        runCatching { context.packageManager.getPackageInfo(pkg, 0).lastUpdateTime }.getOrNull()
 
     private fun isInstallerOfRecord(packageName: String?): Boolean {
         if (packageName == null) return false
@@ -430,17 +540,34 @@ class Installer(private val context: Context) {
             emit(InstallEvent.Progress(written.toFloat() / totalBytes, apk.fileName))
             val before = written
             val cmd = "pm install-write -S ${apk.size} $sessionId ${shellQuote(sessionName(apk))} -"
-            val result = try {
-                shell.run(cmd, timeoutSeconds = 3600) { out ->
+            // pm install-write copies stdin until EOF without checking the count and prints
+            // "Success" even when the copy stopped short, and the shell reports our throw as a mere
+            // write error. Keep it here, or a short or damaged APK gets committed.
+            var failure: Throwable? = null
+            val result = shell.run(cmd, timeoutSeconds = 3600) { out ->
+                try {
                     openApk(zip, source, apk).use { input ->
                         written = before + pump(input, out, apk, request.verifyChecksums) { done ->
                             emit(InstallEvent.Progress((before + done).toFloat() / totalBytes, apk.fileName))
                         }
                     }
+                } catch (t: Throwable) {
+                    failure = t
+                    throw t
                 }
-            } catch (e: CorruptBundleException) {
+            }
+            failure?.let { t ->
                 shell.run("pm install-abandon $sessionId", timeoutSeconds = 30)
-                throw e
+                when (t) {
+                    is CorruptBundleException -> throw t
+                    // Damaged deflate data inside the bundle.
+                    is ZipException, is EOFException -> throw CorruptBundleException(
+                        "${apk.fileName}: ${t.message ?: t.javaClass.simpleName} — the bundle is damaged"
+                    )
+                    else -> return InstallOutcome.Failed(
+                        "reading ${apk.fileName} failed: ${t.message ?: t.javaClass.simpleName}"
+                    )
+                }
             }
             if (!result.ok && "Success" !in result.text) {
                 shell.run("pm install-abandon $sessionId", timeoutSeconds = 30)
@@ -499,7 +626,7 @@ class Installer(private val context: Context) {
             var rounds = 0
             var result = false
             while (rounds++ < 3) {
-                val intent = withTimeoutOrNull(10 * 60 * 1000L) { events.receive() }
+                val intent = events.next(10 * 60 * 1000L)
                 if (intent == null) {
                     emit(InstallEvent.Log(Severity.WARN, "the uninstall never reported back"))
                     break
@@ -508,7 +635,8 @@ class Installer(private val context: Context) {
                 val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, Int.MIN_VALUE)
                 if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
                     val confirm = confirmIntent(intent) ?: break
-                    confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    // A fresh task, for the same reason as an install's confirmation.
+                    confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                     runCatching { context.startActivity(confirm) }
                     continue
                 }
@@ -603,25 +731,28 @@ class Installer(private val context: Context) {
         request: InstallRequest,
         chosen: List<SplitApk>,
         emit: (InstallEvent) -> Unit,
+        takenOverBy: String? = null,
     ): VerifyReport? {
         val pkg = request.info.packageName ?: return null
         val expectNative = request.info.engine != null ||
             chosen.any { it.abis.isNotEmpty() } ||
             (request.inherit && request.info.availableAbis.isNotEmpty())
-        val expectedSplits = chosen
-            .filter { it.kind != SplitKind.STANDALONE }
-            .mapNotNull { it.splitName?.takeIf(String::isNotBlank) }
-
         val report = InstallVerifier.verify(
             context = context,
             packageName = pkg,
             expectNativeLibs = expectNative,
-            expectedSplits = expectedSplits,
+            expectedSplits = expectedSplits(chosen),
+            takenOverBy = takenOverBy,
             shell = BackendResolver.shellFor(request.backend),
         )
         report.findings.forEach { emit(InstallEvent.Log(it.severity, it.message)) }
         return report
     }
+
+    /** The split names an install of [chosen] should leave behind. */
+    private fun expectedSplits(chosen: List<SplitApk>): List<String> = chosen
+        .filter { it.kind != SplitKind.STANDALONE }
+        .mapNotNull { it.splitName?.takeIf(String::isNotBlank) }
 
     companion object {
         fun fmt(bytes: Long): String = when {
@@ -632,5 +763,33 @@ class Installer(private val context: Context) {
         }
 
         private fun pad(s: String) = s.padStart(9)
+
+        /** How long a pending confirmation is waited for. */
+        private const val CONFIRM_WAIT_MS = 20 * 60 * 1000L
+
+        /** How often the wait looks for a cancelled session or another installer's work. */
+        private const val WAIT_TICK_MS = 2_000L
+
+        /** Grace for the session's own answer once it is gone or the package has changed. */
+        private const val LAST_WORD_MS = 5_000L
+
+        /** How often [next] looks for a status. */
+        private const val POLL_MS = 100L
+
+        /**
+         * The next status within [ms], or null. Not withTimeoutOrNull around receive(): a
+         * timeout that lands just as a status is handed over cancels the receive, and that
+         * status is lost for good.
+         */
+        private suspend fun ReceiveChannel<Intent>.next(ms: Long): Intent? {
+            var left = ms
+            while (true) {
+                tryReceive().getOrNull()?.let { return it }
+                if (left <= 0) return null
+                val step = minOf(left, POLL_MS)
+                delay(step)
+                left -= step
+            }
+        }
     }
 }

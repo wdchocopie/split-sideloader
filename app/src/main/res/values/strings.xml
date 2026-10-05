@@ -307,6 +307,8 @@
     <string name="f_no_native_expected">No native code expected, so there is nothing ABI-related to check.</string>
     <string name="f_base_only">The manifest declares required splits but only base.apk is installed. Every split was dropped, which is exactly what store clients do.</string>
     <string name="f_splits_missing">Splits missing after the install: %1$s</string>
+    <string name="f_rom_installer">The installer built into this phone (%1$s) installed the app by itself and dropped its splits. On this phone, install bundles with Shizuku or root.</string>
+    <string name="f_rom_installer_likely">Installed by %1$s, the installer built into this phone, which is known to keep only base.apk from a bundle. On this phone, install bundles with Shizuku or root.</string>
 
     <!-- why a split was picked -->
     <string name="note_base">base, always installed</string>
@@ -491,7 +493,7 @@
     <string name="ota_attempt_failed">Two self-installs in a row did not take, so the app has stopped trying by itself. Install it yourself once to see the error.</string>
     <string name="ota_card_title">Split Sideloader %1$s is out</string>
     <string name="ota_card_from">You are running %1$s.</string>
-    <string name="ota_needs_tap">Checked and ready. Without Shizuku or root, Android needs one tap to replace a running app.</string>
+    <string name="ota_needs_tap">Checked and ready. Without Shizuku or root, the phone asks once before replacing a running app. Some phones put their own store\'s offer first: the button you want is Install, Update or Continue.</string>
     <string name="ota_explainer">Any build must be this package, carry a higher versionCode, and be signed by the same key as the copy running — otherwise it is refused before it is installed, whatever the channel said.</string>
     <string name="ota_notif_title">A new build of Split Sideloader</string>
     <string name="ota_notif_body">%1$s is on the update channel.</string>
@@ -512,4 +514,16 @@
     <string name="language_vi">Tiếng Việt</string>
     <string name="language_en">English</string>
     <string name="language_desc">Applies to this app only, whatever the phone is set to. Log lines stay English so they can be pasted into a bug report.</string>
+
+    <!-- 1.5.3: what a real phone with a MIUI-based skin showed -->
+    <string name="just_now">just now</string>
+    <string name="bar_awaiting_confirm">Waiting for you to confirm in the phone\'s install dialog</string>
+    <string name="action_show_again">Show again</string>
+    <string name="bar_rom_drops_splits">This phone\'s own installer keeps only base.apk and drops every split. Start Shizuku to install bundles here.</string>
+    <string name="bar_rom_drops_splits_ready">This phone\'s own installer keeps only base.apk and drops every split. A silent install method is ready: choose it in Settings.</string>
+    <string name="bar_rom_drops_splits_grant">This phone\'s own installer keeps only base.apk and drops every split. Shizuku is running: allow Split Sideloader in Shizuku to install bundles here.</string>
+    <string name="updates_background_restricted">Android is restricting this app in the background, so scheduled checks and self-updates may never run. Choose No restrictions for its battery use.</string>
+    <string name="updates_autostart_hint">On MIUI-based systems an app also needs Autostart: without it nothing runs while the app is closed, and it does not reopen after updating itself.</string>
+    <string name="updates_autostart_action">Open Autostart</string>
+    <string name="install_permission_find_hint">Find Split Sideloader in the list and allow it</string>
 </resources>

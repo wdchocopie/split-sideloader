@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryAlert
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.InstallMobile
@@ -120,6 +121,7 @@ class SettingsActions(
     val onAppInfo: () -> Unit = {},
     val onClearHistory: () -> Unit = {},
     val onBatteryExempt: () -> Unit = {},
+    val onAutostart: () -> Unit = {},
     val onOtaCheck: () -> Unit = {},
     val onOtaUpdate: () -> Unit = {},
 )
@@ -128,7 +130,8 @@ private const val SHIZUKU_START =
     "pkg install android-tools\n" +
         "adb pair 127.0.0.1:PAIRING_PORT\n" +
         "adb connect 127.0.0.1:CONNECT_PORT\n" +
-        "adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh"
+        // Shizuku 13.6 no longer writes start.sh; its starter ships as a library in the APK.
+        "adb shell 'P=\$(pm path moe.shizuku.privileged.api); \$(dirname \${P#package:})/lib/*/libshizuku.so'"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -267,15 +270,30 @@ fun SettingsScreen(
                             stringResource(R.string.updates_needs_silent),
                         )
                     }
-                    if (device != null && !device.batteryUnrestricted) {
+                    if (device != null && (!device.batteryUnrestricted || device.backgroundRestricted)) {
                         FindingRow(
                             com.sideload.splitinstaller.core.bundle.Severity.WARN,
-                            stringResource(R.string.updates_battery_warning),
+                            stringResource(
+                                if (device.backgroundRestricted) R.string.updates_background_restricted
+                                else R.string.updates_battery_warning
+                            ),
                         )
                         FilledTonalButton(onClick = actions.onBatteryExempt) {
                             Icon(Icons.Rounded.BatteryAlert, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.updates_battery_action))
+                        }
+                    }
+                    if (device?.hasAutostartSettings == true) {
+                        // Nothing reports this switch, so it is always offered on these skins.
+                        FindingRow(
+                            com.sideload.splitinstaller.core.bundle.Severity.INFO,
+                            stringResource(R.string.updates_autostart_hint),
+                        )
+                        FilledTonalButton(onClick = actions.onAutostart) {
+                            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.updates_autostart_action))
                         }
                     }
                     Text(
