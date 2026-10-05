@@ -516,7 +516,9 @@
     <string name="bar_awaiting_confirm">Đang chờ bạn xác nhận trên hộp thoại cài của máy</string>
     <string name="action_show_again">Hiện lại</string>
     <string name="bar_rom_drops_splits">Trình cài của máy này chỉ giữ base.apk và bỏ mọi split. Hãy bật Shizuku để cài gói split trên máy này.</string>
-    <string name="bar_rom_drops_splits_ready">Trình cài của máy này chỉ giữ base.apk và bỏ mọi split. Đã có cách cài im lặng sẵn sàng: hãy chọn nó trong Tùy chọn.</string>
+    <string name="bar_rom_drops_splits_ready">Trình cài của máy này chỉ giữ base.apk và bỏ mọi split. %1$s đang sẵn sàng: hãy cài qua nó.</string>
+    <string name="action_install_via">Cài qua %1$s</string>
+    <string name="action_repair_via">Sửa qua %1$s</string>
     <string name="bar_rom_drops_splits_grant">Trình cài của máy này chỉ giữ base.apk và bỏ mọi split. Shizuku đang chạy: hãy cho phép Split Sideloader trong Shizuku để cài gói trên máy này.</string>
     <string name="updates_background_restricted">Hệ thống đang hạn chế app chạy nền, nên việc kiểm tra định kỳ và tự cập nhật có thể không bao giờ chạy. Hãy chọn Không hạn chế cho mức dùng pin của app.</string>
     <string name="updates_autostart_hint">Trên các hệ thống dựa trên MIUI, app còn cần quyền Tự khởi động: thiếu nó thì khi app đóng sẽ không có gì chạy, và app không tự mở lại sau khi tự cập nhật.</string>

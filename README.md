@@ -101,6 +101,21 @@ liệu mẫu đúng tình huống app sinh ra để xử lý: ZZZ cài qua QooAp
 
 ## Tính năng
 
+### Mới trong 1.5.4 — đường cập nhật không còn kẹt được
+
+- **Tự cập nhật có đường lui.** Shizuku hay root mà không cài được bản mới thì lần thử kế
+  tiếp của chính bản đó đi qua hộp thoại của hệ thống — ngay lập tức nếu bạn vừa bấm Cập nhật
+  và app đang mở. Lỗi kiểu 1.5.2 (Shizuku hỏng nên không cập nhật được) không thể chặn bản sau
+  nữa.
+- **Ghi chú trước khi cập nhật.** Thẻ "Có bản mới" hiện vài dòng ghi chú của bản đó, nên điều
+  cần làm trước (nếu có) được nói ra trước khi bạn bấm.
+- **Máy làm rơi split + Shizuku đang sẵn sàng:** nút **Cài qua Shizuku** / **Sửa qua Shizuku**
+  ngay cạnh cảnh báo, cho riêng lần đó, không phải vào Tùy chọn đổi cách cài.
+- Nhận diện bộ cài của máy chắc hơn: không nhầm sang hộp chọn app khi máy có thêm app cài
+  APK khác, và không đổ lỗi cho bộ cài của máy khi chính bạn cài lại app trong lúc hộp thoại
+  đang chờ. Kết luận "bộ cài của máy đã bỏ split" chỉ khẳng định khi thấy tận mắt trong lần
+  cài đó; khi quét app thì nói ở mức "có thể".
+
 ### Mới trong 1.5.3 — thử trên máy thật: Black Shark 4 Pro (JoyUI, nhân MIUI)
 
 Bản này sửa những gì một chiếc máy thật chạy ROM Trung Quốc lôi ra:
@@ -126,8 +141,9 @@ Bản này sửa những gì một chiếc máy thật chạy ROM Trung Quốc l
   ghi theo trang (apkmirror.com) thay vì tên CDN.
 
 > **Cập nhật từ 1.5.0–1.5.2 khi Shizuku đang chạy:** nút Cập nhật của bản cũ đi đường
-> Shizuku (đường đang hỏng ở bản cũ) và sẽ báo lỗi. Hãy tắt Shizuku (hoặc khởi động lại máy)
-> rồi bấm Cập nhật để đi qua hộp thoại thường, hoặc tải APK ở trang Releases và cài tay.
+> Shizuku (đường đang hỏng ở bản cũ) và sẽ báo lỗi. Hãy dừng Shizuku (nút Stop trong app
+> Shizuku; nếu nó tự bật khi khởi động máy thì khởi động lại cũng không đủ) rồi bấm Cập nhật để
+> đi qua hộp thoại thường, hoặc tải APK ở trang Releases và cài tay.
 > Từ 1.5.3 trở đi không còn vướng chuyện này.
 
 ### Mới trong 1.5 — chọn ngôn ngữ trong app
@@ -443,7 +459,15 @@ Script đọc `keystore.properties` và file `.jks`, đẩy thẳng vào Secrets
 **Phát hành bản mới:**
 
 1. Tăng `versionCode` và `versionName` trong `app/build.gradle.kts`.
-2. Commit, rồi gắn tag đúng bằng `versionName`:
+2. (Nên) Viết ghi chú vào `docs/release-notes/`:
+   - `vX.Y.Z.md` — nội dung trang release trên GitHub. Không có file thì GitHub tự liệt kê
+     commit.
+   - `vX.Y.Z.ota.txt` — vài dòng ngắn đi vào `ota.json`, hiện ngay trên thẻ cập nhật trong
+     app **trước** khi ai bấm Cập nhật. Chỗ để dặn những điều phải làm trước, kiểu "tắt
+     Shizuku rồi hãy cập nhật".
+3. Chụp lại ảnh mẫu (`./gradlew :app:recordPaparazziDebug`): vài màn hiện số phiên bản của
+   chính app, nên đổi phiên bản là ảnh đổi.
+4. Commit, rồi gắn tag đúng bằng `versionName`:
 
 ```bash
 git tag v1.5.1
@@ -494,7 +518,22 @@ Test chạy trên JVM, không cần máy Android:
 | `UpdateCheckerTest` | Đọc JSON thật của F-Droid và GitHub, chọn asset theo ABI, rút gọn link repo |
 | `OtaTest` | Nhận diện kênh (chặn http), đọc manifest, so phiên bản của chính app |
 | `RomQuirksTest` | Khi nào coi là bộ cài của máy "chiếm" phiên cài, và khi nào được đổ lỗi cho nó |
-| `ScreenshotTest` | 27 màn hình, sáng/tối/AMOLED, tiếng Việt + English, so với ảnh gốc |
+| `ScreenshotTest` | 27 màn hình, sáng/tối/AMOLED, tiếng Việt + English, so với ảnh gốc; giờ và múi giờ được ghim, nên ảnh không đổi theo máy hay theo ngày |
+
+Và một bộ chạy **trên máy thật** (cắm adb, kể cả adb qua Wi-Fi). Quyền Shizuku gắn với app đã
+cài, nên cài bản debug một lần, mở Shizuku cho phép nó, rồi chạy mà **không gỡ app sau mỗi lần**:
+
+```bash
+./gradlew :app:installDebug
+```
+
+```bash
+./gradlew :app:connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true
+```
+
+| Test | Kiểm |
+|---|---|
+| `ShellDeviceTest` | Lệnh qua Shizuku chạy và được chờ đúng, stdin 3 MB tới nơi, lệnh treo bị cắt, mã thoát đúng; bộ cài hệ thống dò ra không phải hộp chọn app. Shizuku không chạy thì các test Shizuku bỏ qua; chạy mà chưa cho phép app thì chúng **báo lỗi**, để kết quả xanh luôn có nghĩa là đã thật sự chạy. |
 
 ---
 

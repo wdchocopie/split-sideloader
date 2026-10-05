@@ -112,8 +112,18 @@ data class OtaStatus(
      * it has been fetched and checked, without waiting for the app to be closed.
      */
     val installRequestedKey: String? = null,
+    /**
+     * [OtaRelease.identity] of a build Shizuku or root failed to install. The next try at that
+     * build goes through the system's confirmation instead, so a broken silent route can never
+     * keep an update from arriving.
+     */
+    val silentFailedKey: String? = null,
 ) {
     val hasUpdate: Boolean get() = state == OtaState.UPDATE || state == OtaState.READY
+
+    /** The stored build already failed to install silently; it is to go through the dialog. */
+    val silentFailed: Boolean
+        get() = release != null && silentFailedKey == release.identity
 
     /** A build is known and still to be installed. */
     val pending: Boolean get() = release != null && hasUpdate

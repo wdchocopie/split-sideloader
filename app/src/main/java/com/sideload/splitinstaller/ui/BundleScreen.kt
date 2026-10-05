@@ -89,6 +89,9 @@ class BundleActions(
     val onSelectAll: () -> Unit = {},
     val onInstall: (uninstallFirst: Boolean) -> Unit = {},
     val onRepair: () -> Unit = {},
+    /** Install, or repair, through Shizuku or root this once, whatever the chosen method. */
+    val onInstallVia: (BackendKind) -> Unit = {},
+    val onRepairVia: (BackendKind) -> Unit = {},
     val onReverify: () -> Unit = {},
     val onLaunch: (String) -> Unit = {},
     val onBackupToggle: (Boolean) -> Unit = {},
@@ -143,7 +146,9 @@ fun BundleScreen(state: UiState, backend: BackendKind?, actions: BundleActions) 
 
             if (state.repairSplits.isNotEmpty() && !state.installing) {
                 val dropsSplits = backend == BackendKind.PACKAGE_INSTALLER && state.device?.installerDropsSplits == true
-                item(key = "repair") { RepairCard(state.repairSplits, dropsSplits, state.device, actions.onRepair) }
+                item(key = "repair") {
+                    RepairCard(state.repairSplits, dropsSplits, state.device, actions.onRepair, actions.onRepairVia)
+                }
             }
 
             if (info.findings.isNotEmpty()) {
@@ -332,7 +337,13 @@ private fun StatusLine(icon: ImageVector, tone: Tone, text: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RepairCard(splits: List<SplitApk>, dropsSplits: Boolean, device: DeviceReport?, onRepair: () -> Unit) {
+private fun RepairCard(
+    splits: List<SplitApk>,
+    dropsSplits: Boolean,
+    device: DeviceReport?,
+    onRepair: () -> Unit,
+    onRepairVia: (BackendKind) -> Unit,
+) {
     AppCard(color = Tone.INFO.container(), contentColor = Tone.INFO.onContainer()) {
         Row(verticalAlignment = Alignment.Top) {
             Box(
@@ -356,6 +367,11 @@ private fun RepairCard(splits: List<SplitApk>, dropsSplits: Boolean, device: Dev
                 style = MaterialTheme.typography.bodySmall,
                 color = Tone.DANGER.accent(),
             )
+            device?.silentBackend?.let { silent ->
+                OutlinedButton(onClick = { onRepairVia(silent) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.action_repair_via, silentName(silent)))
+                }
+            }
         }
         Button(
             onClick = onRepair,
@@ -545,14 +561,16 @@ private fun InstallBar(state: UiState, info: BundleInfo, backend: BackendKind?, 
 @Composable
 private fun romDropsSplitsHint(device: DeviceReport?): String {
     val shizuku = device?.capabilities?.firstOrNull { it.kind == BackendKind.SHIZUKU }?.state
-    return stringResource(
-        when {
-            device?.silentBackend != null -> R.string.bar_rom_drops_splits_ready
-            shizuku == BackendState.NEEDS_ACTION -> R.string.bar_rom_drops_splits_grant
-            else -> R.string.bar_rom_drops_splits
-        }
-    )
+    val silent = device?.silentBackend
+    return when {
+        silent != null -> stringResource(R.string.bar_rom_drops_splits_ready, silentName(silent))
+        shizuku == BackendState.NEEDS_ACTION -> stringResource(R.string.bar_rom_drops_splits_grant)
+        else -> stringResource(R.string.bar_rom_drops_splits)
+    }
 }
+
+/** Product names, the same in every language. */
+private fun silentName(kind: BackendKind): String = if (kind == BackendKind.ROOT) "root" else "Shizuku"
 
 @Composable
 private fun IdleBarContent(state: UiState, info: BundleInfo, backend: BackendKind?, actions: BundleActions) {
@@ -565,8 +583,17 @@ private fun IdleBarContent(state: UiState, info: BundleInfo, backend: BackendKin
                 romDropsSplitsHint(state.device),
                 style = MaterialTheme.typography.bodySmall,
                 color = Tone.DANGER.accent(),
-                modifier = Modifier.padding(bottom = 10.dp),
+                modifier = Modifier.padding(bottom = 6.dp),
             )
+            state.device?.silentBackend?.let { silent ->
+                OutlinedButton(
+                    onClick = { actions.onInstallVia(silent) },
+                    enabled = !blocked,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                ) {
+                    Text(stringResource(R.string.action_install_via, silentName(silent)))
+                }
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {

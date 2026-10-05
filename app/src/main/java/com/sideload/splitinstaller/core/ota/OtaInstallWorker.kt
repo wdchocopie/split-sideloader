@@ -158,8 +158,15 @@ class OtaInstallWorker(context: Context, params: WorkerParameters) : CoroutineWo
             // Counted here, since the process survived; waiting for the next launch to notice
             // would let a background run try the same build again before then.
             OtaStore.recordFailure(context)
-            // A tap is honoured once; after a failure the next try is another tap.
-            if (requested) OtaStore.requestInstall(context, null)
+            // The silent route failed for this build, which says nothing about the build: the
+            // next try at it goes through the system dialog. A tap on Update stays in force, so
+            // with the app on screen the dialog follows at once; otherwise it waits for a tap.
+            // Marked only for the build that was tried: a check meanwhile may have stored another.
+            OtaStore.status.value.release
+                ?.takeIf { it.versionCode == 0L || it.versionCode == info.versionCode }
+                ?.let { OtaStore.markSilentFailed(context, it.identity) }
+            EventLog.warn("OTA: $backend could not install it; the next try asks through the system dialog")
+            // Always said: the dialog that should follow can fail too, before it ever shows.
             Notifications.result(context, context.getString(R.string.ota_failed_title), outcome.message, uri)
         }
         Result.success()

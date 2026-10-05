@@ -56,7 +56,8 @@ jobs:
           fi
 
       - name: Unit tests and screen renders
-        run: ./gradlew --no-daemon :app:testDebugUnitTest
+        # The on-device tests need a phone; building them here at least keeps them compiling.
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebugAndroidTest
 
       # The reference images were recorded on Windows; font rasterising can differ by a few
       # pixels on Linux, so a mismatch is reported with its images rather than failing the build.
@@ -156,6 +157,9 @@ jobs:
             echo "::error::refusing to publish an unsigned release; set the signing secrets first"
             exit 1
           fi
+          # Notes written for this release, when there are any; otherwise GitHub's own list.
+          notes="docs/release-notes/$GITHUB_REF_NAME.md"
+          if [ -f "$notes" ]; then set -- --notes-file "$notes"; else set -- --generate-notes; fi
           gh release create "$GITHUB_REF_NAME" out/* \
             --title "Split Sideloader ${{ steps.version.outputs.name }}" \
-            --generate-notes
+            "$@"

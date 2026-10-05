@@ -520,7 +520,9 @@
     <string name="bar_awaiting_confirm">Waiting for you to confirm in the phone\'s install dialog</string>
     <string name="action_show_again">Show again</string>
     <string name="bar_rom_drops_splits">This phone\'s own installer keeps only base.apk and drops every split. Start Shizuku to install bundles here.</string>
-    <string name="bar_rom_drops_splits_ready">This phone\'s own installer keeps only base.apk and drops every split. A silent install method is ready: choose it in Settings.</string>
+    <string name="bar_rom_drops_splits_ready">This phone\'s own installer keeps only base.apk and drops every split. %1$s is ready: install through it instead.</string>
+    <string name="action_install_via">Install via %1$s</string>
+    <string name="action_repair_via">Repair via %1$s</string>
     <string name="bar_rom_drops_splits_grant">This phone\'s own installer keeps only base.apk and drops every split. Shizuku is running: allow Split Sideloader in Shizuku to install bundles here.</string>
     <string name="updates_background_restricted">Android is restricting this app in the background, so scheduled checks and self-updates may never run. Choose No restrictions for its battery use.</string>
     <string name="updates_autostart_hint">On MIUI-based systems an app also needs Autostart: without it nothing runs while the app is closed, and it does not reopen after updating itself.</string>

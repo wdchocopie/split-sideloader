@@ -170,9 +170,13 @@ object OtaFlow {
         runCatching { context.contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false }
             .getOrDefault(false)
 
-    fun silentBackend(context: Context): BackendKind? =
-        BackendResolver.probe(context).capabilities
+    fun silentBackend(context: Context): BackendKind? {
+        // A build Shizuku or root already failed to install goes through the dialog instead.
+        OtaStore.load(context)
+        if (OtaStore.status.value.silentFailed) return null
+        return BackendResolver.probe(context).capabilities
             .firstOrNull { it.state == BackendState.READY && it.silent }?.kind
+    }
 
     private fun isMetered(context: Context): Boolean =
         runCatching { context.getSystemService(ConnectivityManager::class.java)?.isActiveNetworkMetered }

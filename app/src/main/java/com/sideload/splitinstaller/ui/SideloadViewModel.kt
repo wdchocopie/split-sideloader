@@ -79,6 +79,8 @@ data class UiState(
     val progressLabel: String = "",
     /** The system's confirmation is up (or was left); it can be shown again or cancelled. */
     val awaitingConfirm: Boolean = false,
+    /** "Install via" picked for this bundle; Retry and reinstall keep to it. */
+    val lastVia: BackendKind? = null,
     val outcome: InstallOutcome? = null,
     val verifyReport: VerifyReport? = null,
     val error: String? = null,
@@ -220,6 +222,7 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
                     signatureMatch = match,
                     installedSigner = installedSigner,
                     repairSplits = repairCandidates(info, installed, choice.selected),
+                    lastVia = null,
                 )
             }
         } catch (t: Throwable) {
@@ -258,6 +261,7 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
             it.copy(
                 bundle = null, outcome = null, verifyReport = null, progress = 0f, progressLabel = "",
                 repairSplits = emptyList(), signatureMatch = SignatureMatch.UNKNOWN, installedSigner = null,
+                lastVia = null,
             )
         }
     }
@@ -420,34 +424,52 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
             // Root granted in this session installs without asking; otherwise the system asks.
+            // A build the silent route already failed on is asked for right away.
             val backend = withContext(Dispatchers.IO) {
-                BackendResolver.probe(app, _state.value.rootConfirmed).capabilities
-                    .firstOrNull { it.state == BackendState.READY && it.silent }?.kind
+                if (OtaStore.status.value.silentFailed) {
+                    null
+                } else {
+                    BackendResolver.probe(app, _state.value.rootConfirmed).capabilities
+                        .firstOrNull { it.state == BackendState.READY && it.silent }?.kind
+                }
             } ?: BackendKind.PACKAGE_INSTALLER
             withContext(Dispatchers.IO) {
                 // The tap is used up here: declining the dialog must not bring it back by itself.
                 OtaStore.requestInstall(app, null)
                 OtaStore.markAttempt(app, info.versionCode, viaDialog = backend == BackendKind.PACKAGE_INSTALLER)
             }
-            EventLog.rule("OTA: installing " + (info.versionName ?: "?") + " via " + backend)
-            val outcome = Installer(app).install(
-                InstallRequest(
-                    info = info,
-                    selected = SplitSelector.autoSelect(app, info).selected,
-                    backend = backend,
-                    installObb = false,
-                    allowDowngrade = false,
-                    grantAllPermissions = false,
-                    verifyChecksums = prefs.verifyChecksums,
-                    backupFirst = false,
-                ),
-            ) { event ->
-                when (event) {
-                    is InstallEvent.Log -> EventLog.add(event.severity, event.message)
-                    is InstallEvent.AwaitingConfirmation -> otaPendingConfirm = event.confirm
-                    is InstallEvent.Answered -> otaPendingConfirm = null
-                    is InstallEvent.Progress -> Unit
+            suspend fun install(via: BackendKind): InstallOutcome {
+                EventLog.rule("OTA: installing " + (info.versionName ?: "?") + " via " + via)
+                return Installer(app).install(
+                    InstallRequest(
+                        info = info,
+                        selected = SplitSelector.autoSelect(app, info).selected,
+                        backend = via,
+                        installObb = false,
+                        allowDowngrade = false,
+                        grantAllPermissions = false,
+                        verifyChecksums = prefs.verifyChecksums,
+                        backupFirst = false,
+                    ),
+                ) { event ->
+                    when (event) {
+                        is InstallEvent.Log -> EventLog.add(event.severity, event.message)
+                        is InstallEvent.AwaitingConfirmation -> otaPendingConfirm = event.confirm
+                        is InstallEvent.Answered -> otaPendingConfirm = null
+                        is InstallEvent.Progress -> Unit
+                    }
                 }
+            }
+            var outcome = install(backend)
+            if (outcome is InstallOutcome.Failed && backend != BackendKind.PACKAGE_INSTALLER) {
+                // The silent route is what failed, not necessarily the build: ask instead, now,
+                // while the person who tapped Update is looking.
+                EventLog.warn("OTA: $backend could not install it (${outcome.message}); asking through the system dialog")
+                withContext(Dispatchers.IO) {
+                    release?.let { OtaStore.markSilentFailed(app, it.identity) }
+                    OtaStore.markAttempt(app, info.versionCode, viaDialog = true)
+                }
+                outcome = install(BackendKind.PACKAGE_INSTALLER)
             }
             // Success replaces this process, so only a failure or a declined dialog gets here.
             if (outcome is InstallOutcome.Failed) {
@@ -491,15 +513,25 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- install -----------------------------------------------------------
 
-    fun install(uninstallFirst: Boolean = false) = runInstall(repair = false, uninstallFirst = uninstallFirst)
+    /**
+     * [via] installs through that method, if it is ready, whatever the chosen one; once picked
+     * for a bundle, Retry and reinstall keep to it rather than fall back to the dialog.
+     */
+    fun install(uninstallFirst: Boolean = false, via: BackendKind? = null) =
+        runInstall(repair = false, uninstallFirst = uninstallFirst, via = via ?: _state.value.lastVia)
 
     /** Add only the missing splits to the installed copy, keeping its data. */
-    fun repair() = runInstall(repair = true, uninstallFirst = false)
+    fun repair(via: BackendKind? = null) =
+        runInstall(repair = true, uninstallFirst = false, via = via ?: _state.value.lastVia)
 
-    private fun runInstall(repair: Boolean, uninstallFirst: Boolean) = viewModelScope.launch {
+    private fun runInstall(repair: Boolean, uninstallFirst: Boolean, via: BackendKind? = null) = viewModelScope.launch {
         val s = _state.value
         val info = s.bundle ?: return@launch
-        val backend = effectiveBackend() ?: run {
+        val ready = via?.takeIf { kind ->
+            s.device?.capabilities?.any { it.kind == kind && it.state == BackendState.READY } == true
+        }
+        if (ready != null) _state.update { it.copy(lastVia = ready) }
+        val backend = ready ?: effectiveBackend() ?: run {
             _state.update { it.copy(error = "no usable install backend") }
             return@launch
         }

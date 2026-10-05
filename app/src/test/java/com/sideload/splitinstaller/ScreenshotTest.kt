@@ -77,8 +77,12 @@ import com.sideload.splitinstaller.ui.SourcesState
 import com.sideload.splitinstaller.ui.SplitSideloaderTheme
 import com.sideload.splitinstaller.ui.Tabs
 import com.sideload.splitinstaller.ui.UiState
+import com.sideload.splitinstaller.ui.UiClock
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.util.TimeZone
 
 /**
  * Renders the real screens with realistic data, in both themes, so the design can be
@@ -94,6 +98,21 @@ class ScreenshotTest {
         maxPercentDifference = 0.5,
         useDeviceResolution = true,
     )
+
+    private val zone = TimeZone.getDefault()
+
+    /** One fixed moment and zone, so times and dates on screen are the same on every machine. */
+    @Before
+    fun pinClock() {
+        UiClock.now = { Samples.NOW }
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+    }
+
+    @After
+    fun releaseClock() {
+        UiClock.now = System::currentTimeMillis
+        TimeZone.setDefault(zone)
+    }
 
     /** The app's own language setting means English is a first-class rendering, not a fallback. */
     private fun englishShot(name: String, dark: Boolean, height: Int = 4200, content: @Composable () -> Unit) {
@@ -302,7 +321,9 @@ class ScreenshotTest {
 
 private object Samples {
     const val PKG = "com.HoYoverse.Nap"
-    private val now = System.currentTimeMillis()
+    /** 2026-09-21 14:13:20 UTC; see [ScreenshotTest.pinClock]. */
+    const val NOW = 1_790_000_000_000L
+    private const val now = NOW
     private const val MB = 1024L * 1024
 
     val device = DeviceReport(

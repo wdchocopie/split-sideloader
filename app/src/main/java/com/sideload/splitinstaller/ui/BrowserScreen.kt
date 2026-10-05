@@ -165,7 +165,7 @@ fun BrowserScreen(
 
     // The newest download started while this page was open.
     val latest = downloads.firstOrNull { it.active } ?: downloads.firstOrNull {
-        it.status == DownloadStatus.DONE && it.isBundle && System.currentTimeMillis() - it.time < 5 * 60_000
+        it.status == DownloadStatus.DONE && it.isBundle && UiClock.now() - it.time < 5 * 60_000
     }
 
     Scaffold(

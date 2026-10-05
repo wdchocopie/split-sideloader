@@ -26,9 +26,10 @@ android {
         applicationId = "com.sideload.splitinstaller"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.5.3"
+        versionCode = 10
+        versionName = "1.5.4"
         resourceConfigurations += listOf("en", "vi")
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -93,8 +94,12 @@ tasks.register("otaManifest") {
     val versionCode = android.defaultConfig.versionCode
     val versionName = android.defaultConfig.versionName
     val baseUrl = (project.findProperty("otaBaseUrl") as String?).orEmpty()
+    // A few lines the update card shows before anyone taps Update, e.g. what to do first.
+    val notes = rootProject.file("docs/release-notes/v$versionName.ota.txt")
+        .takeIf { it.isFile }?.readText()?.trim().orEmpty()
     inputs.file(apk)
     inputs.property("otaBaseUrl", baseUrl)
+    inputs.property("otaNotes", notes)
     outputs.file(out)
     doLast {
         val file = apk.get().asFile
@@ -119,7 +124,7 @@ tasks.register("otaManifest") {
               "sha256": "$sha",
               "size": ${file.length()},
               "minSdk": ${android.defaultConfig.minSdk},
-              "notes": ""
+              "notes": ${groovy.json.JsonOutput.toJson(notes)}
             }
         """.trimIndent()
         val target = out.get().asFile
@@ -152,4 +157,7 @@ dependencies {
     testImplementation(libs.junit)
     // A real org.json on the test classpath, so the update parsers can be tested off-device.
     testImplementation(libs.json.jvm)
+    // On a real phone: the shell paths a JVM test cannot reach (./gradlew connectedDebugAndroidTest).
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }

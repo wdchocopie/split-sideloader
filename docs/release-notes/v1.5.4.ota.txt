@@ -1,0 +1,2 @@
+Đang bật Shizuku? Hãy dừng Shizuku rồi mới bấm Cập nhật: bản cũ cập nhật qua Shizuku sẽ lỗi.
+Shizuku running? Stop it before tapping Update; older versions fail to update through it.

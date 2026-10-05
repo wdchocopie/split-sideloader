@@ -137,7 +137,10 @@ fun HomeScreen(
             item(key = "hero") { StatusHero(state.device, actions.onCapability) }
 
             if (ota != null && ota.hasUpdate) {
-                item(key = "ota") { OtaCard(ota, state.device?.silentAvailable == true, otaProgress, actions) }
+                // A build Shizuku or root already failed on goes through the dialog: say so.
+                item(key = "ota") {
+                    OtaCard(ota, state.device?.silentAvailable == true && !ota.silentFailed, otaProgress, actions)
+                }
             }
 
             val device = state.device

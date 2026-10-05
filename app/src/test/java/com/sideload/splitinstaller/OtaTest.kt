@@ -160,6 +160,18 @@ class OtaStoreMergeTest {
     }
 
     @Test
+    fun `a silent install that failed is remembered across checks, for that build only`() {
+        val current = OtaStatus(OtaState.READY, v2, silentFailedKey = v2.identity)
+        assertEquals(true, current.silentFailed)
+        // The same build found again: it still goes through the dialog.
+        val again = OtaStore.merge(current, OtaStatus(OtaState.UPDATE, v2, checkedAt = 5))
+        assertEquals(true, again.silentFailed)
+        // A newer build gets its own chance at a silent install.
+        val newer = OtaStore.merge(current, OtaStatus(OtaState.UPDATE, v3, checkedAt = 5))
+        assertEquals(false, newer.silentFailed)
+    }
+
+    @Test
     fun `with nothing pending, a failed check is recorded as failed`() {
         val merged = OtaStore.merge(OtaStatus(OtaState.UP_TO_DATE, v2), OtaStatus(OtaState.ERROR, message = "HTTP 500"))
         assertEquals(OtaState.ERROR, merged.state)

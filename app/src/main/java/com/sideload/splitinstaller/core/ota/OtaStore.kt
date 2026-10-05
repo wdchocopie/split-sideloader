@@ -66,6 +66,7 @@ object OtaStore {
             refusedKey = current.refusedKey,
             readyNotifiedKey = current.readyNotifiedKey,
             installRequestedKey = current.installRequestedKey,
+            silentFailedKey = current.silentFailedKey,
             fileUri = if (keepFile) current.fileUri else status.fileUri,
             fileSourceUrl = if (keepFile) current.fileSourceUrl else status.fileSourceUrl,
             state = if (sameBuild && current.state == OtaState.READY && status.state == OtaState.UPDATE) {
@@ -115,6 +116,9 @@ object OtaStore {
 
     /** Remembers (or, with null, forgets) a tap on "Update" for one build. */
     fun requestInstall(context: Context, key: String?) = update(context) { it.copy(installRequestedKey = key) }
+
+    /** Shizuku or root failed to install this build; the next try asks through the dialog. */
+    fun markSilentFailed(context: Context, key: String) = update(context) { it.copy(silentFailedKey = key) }
 
     /** An attempt that ended without an install, e.g. a confirmation dialog that was declined. */
     fun cancelAttempt(context: Context) = update(context) { it.copy(attemptedVersion = 0, attemptViaDialog = false) }
@@ -235,6 +239,7 @@ object OtaStore {
             refusedKey = o.optString("refused").ifBlank { null },
             readyNotifiedKey = o.optString("notified").ifBlank { null },
             installRequestedKey = o.optString("requested").ifBlank { null },
+            silentFailedKey = o.optString("silentFailed").ifBlank { null },
         )
     }
 
@@ -251,6 +256,7 @@ object OtaStore {
             .put("refused", status.refusedKey.orEmpty())
             .put("notified", status.readyNotifiedKey.orEmpty())
             .put("requested", status.installRequestedKey.orEmpty())
+            .put("silentFailed", status.silentFailedKey.orEmpty())
         status.release?.let { r ->
             o.put(
                 "release",

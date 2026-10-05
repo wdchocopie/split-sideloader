@@ -77,6 +77,7 @@ import com.sideload.splitinstaller.core.update.UpdateKind
 import com.sideload.splitinstaller.core.update.UpdatePin
 import com.sideload.splitinstaller.core.update.UpdateResult
 import com.sideload.splitinstaller.core.update.UpdateState
+import androidx.compose.ui.platform.LocalConfiguration
 import java.text.DateFormat
 import java.util.Date
 
@@ -378,8 +379,12 @@ private fun DiagnosisCard(detail: AppDetail) {
     }
 }
 
-private fun formatDate(time: Long): String =
-    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(time))
+/** In the app's own language, like the rest of the screen, not the phone's. */
+@Composable
+private fun formatDate(time: Long): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale).format(Date(time))
+}
 
 // ---- updates ---------------------------------------------------------------------------------
 
