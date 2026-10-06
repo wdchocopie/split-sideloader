@@ -184,6 +184,20 @@ object BackendResolver {
             context.getSystemService(android.app.ActivityManager::class.java).isBackgroundRestricted
         }.getOrDefault(false)
 
+    /**
+     * The silent method for work nobody is watching: a worker, the watch service, a download
+     * finishing. Root counts when it is the chosen method — that choice came after a confirmed
+     * su prompt, and a worker cannot ask again. The chosen method wins when it is ready.
+     */
+    fun backgroundSilent(context: Context, preferred: BackendKind?): BackendKind? {
+        val report = probe(context, rootConfirmed = preferred == BackendKind.ROOT)
+        preferred?.let { kind ->
+            val cap = report.capabilities.firstOrNull { it.kind == kind }
+            if (cap != null && cap.state == BackendState.READY && cap.silent) return kind
+        }
+        return report.capabilities.firstOrNull { it.state == BackendState.READY && it.silent }?.kind
+    }
+
     fun shellFor(kind: BackendKind): Shell? = when (kind) {
         BackendKind.SHIZUKU -> ShizukuShell
         BackendKind.ROOT -> RootShell

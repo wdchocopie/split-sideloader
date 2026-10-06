@@ -5,8 +5,17 @@ enum class UpdateKind {
     /** f-droid.org's per-package API: exact versionCode and a direct APK link. */
     FDROID,
 
+    /** IzzyOnDroid: an F-Droid repository with the same package API, carrying developers' own builds. */
+    IZZYONDROID,
+
     /** A GitHub repository's latest release and its APK assets. */
     GITHUB,
+
+    /** A GitLab project's latest release, on gitlab.com or a server of its own. */
+    GITLAB,
+
+    /** A Forgejo or Gitea repository's latest release, Codeberg's included. */
+    FORGEJO,
 
     /**
      * A page you pinned yourself, such as an app's APKMirror or APKPure page. Those sites
@@ -19,7 +28,10 @@ enum class UpdateKind {
 data class UpdatePin(
     val packageName: String,
     val kind: UpdateKind,
-    /** "owner/repo" for GitHub, the package name for F-Droid, a URL for a web page. */
+    /**
+     * "owner/repo" for GitHub, the package name for F-Droid and IzzyOnDroid, "host/group/project"
+     * for GitLab, "host/owner/repo" for Forgejo, a URL for a web page.
+     */
     val value: String,
     val label: String? = null,
     val pinnedAt: Long = System.currentTimeMillis(),

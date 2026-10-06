@@ -29,6 +29,9 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lightbulb
@@ -36,6 +39,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -74,8 +78,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sideload.splitinstaller.R
+import androidx.compose.ui.platform.LocalClipboardManager
+import com.sideload.splitinstaller.core.linkProblemRes
 import com.sideload.splitinstaller.core.sources.DownloadItem
 import com.sideload.splitinstaller.core.sources.DownloadStatus
+import com.sideload.splitinstaller.core.sources.LinkProblem
+import com.sideload.splitinstaller.core.update.FDroidHit
 import com.sideload.splitinstaller.core.sources.Source
 import com.sideload.splitinstaller.core.sources.SourceTrust
 
@@ -91,6 +99,13 @@ class SourcesActions(
     val onCancelDownload: (Long) -> Unit = {},
     val onForgetDownload: (Long) -> Unit = {},
     val onOpenExternal: (String) -> Unit = {},
+    val onLinkText: (String) -> Unit = {},
+    val onLinkGo: () -> Unit = {},
+    /** The link in the browser instead, after the server refused it. */
+    val onLinkOpenPage: () -> Unit = {},
+    val onFDroidInstall: (FDroidHit) -> Unit = {},
+    val onFDroidPage: (String) -> Unit = {},
+    val onFDroidClose: () -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,6 +132,10 @@ fun SourcesScreen(state: SourcesState, actions: SourcesActions, modifier: Modifi
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item(key = "search") { SearchCard(state, actions) }
+            if (state.fdroid.busy || state.fdroid.hits != null || state.fdroid.failed) {
+                item(key = "fdroid") { FDroidResults(state.fdroid, actions) }
+            }
+            item(key = "link") { LinkCard(state.link, actions) }
 
             if (state.downloads.isNotEmpty()) {
                 item(key = "dl-label") { SectionLabel(stringResource(R.string.section_downloads)) }
@@ -199,6 +218,155 @@ private fun SearchCard(state: SourcesState, actions: SourcesActions) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+// ---- F-Droid search results -----------------------------------------------------------------
+
+@Composable
+private fun FDroidResults(search: FDroidSearch, actions: SourcesActions) {
+    AppCard(spacing = 8.dp) {
+        CardTitle(stringResource(R.string.fdroid_results_title), Icons.Rounded.Search) {
+            IconButton(onClick = actions.onFDroidClose) { Icon(Icons.Rounded.Close, stringResource(R.string.action_clear)) }
+        }
+        when {
+            search.busy -> LinearProgressIndicator(Modifier.fillMaxWidth())
+            search.failed && search.hits == null -> Text(
+                stringResource(R.string.fdroid_failed),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            search.hits.isNullOrEmpty() -> Text(stringResource(R.string.fdroid_none), style = MaterialTheme.typography.bodySmall)
+            else -> search.hits.take(MAX_HITS).forEach { hit ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(hit.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            hit.summary ?: hit.packageName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    TextButton(onClick = { actions.onFDroidPage(hit.packageName) }) { Text(stringResource(R.string.fdroid_page)) }
+                    FilledTonalButton(
+                        onClick = { actions.onFDroidInstall(hit) },
+                        enabled = search.installing == null,
+                    ) { Text(stringResource(R.string.action_install)) }
+                }
+            }
+        }
+        if (search.failed && search.hits != null) {
+            Text(stringResource(R.string.fdroid_no_build), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+private const val MAX_HITS = 8
+
+// ---- download from a link -------------------------------------------------------------------
+
+@Composable
+private fun LinkCard(link: LinkState, actions: SourcesActions) {
+    val clipboard = LocalClipboardManager.current
+    AppCard(spacing = 10.dp) {
+        CardTitle(stringResource(R.string.link_title), Icons.Rounded.Link)
+        OutlinedTextField(
+            value = link.text,
+            onValueChange = actions.onLinkText,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.link_hint)) },
+            singleLine = true,
+            trailingIcon = {
+                // The clipboard is read only on this tap: Android shows that it was read.
+                IconButton(onClick = { clipboard.getText()?.text?.let(actions.onLinkText) }) {
+                    Icon(Icons.Rounded.ContentPaste, stringResource(R.string.link_paste))
+                }
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+            keyboardActions = KeyboardActions(onGo = { actions.onLinkGo() }),
+        )
+        link.problem?.let { code ->
+            Text(
+                if (code == LinkProblem.HTTP) stringResource(R.string.link_p_http, link.httpCode)
+                else stringResource(linkProblemRes(code)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            // A site that wants its own page visited first (a login, a cookie) may still give the
+            // file to the browser.
+            if (code == LinkProblem.HTTP) {
+                TextButton(onClick = actions.onLinkOpenPage) { Text(stringResource(R.string.link_open_page)) }
+            }
+        }
+        Button(
+            onClick = actions.onLinkGo,
+            enabled = link.text.isNotBlank() && !link.busy,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (link.busy) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.link_checking))
+            } else {
+                Icon(Icons.Rounded.Download, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.link_go))
+            }
+        }
+        Text(
+            stringResource(R.string.link_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Asked before anything is downloaded, whether the link was typed here or shared from elsewhere. */
+@Composable
+fun LinkConfirmDialog(plan: LinkPlan, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Rounded.Download, null) },
+        title = { Text(stringResource(R.string.link_confirm_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(plan.fileName, style = MaterialTheme.typography.titleSmall, fontFamily = FontFamily.Monospace)
+                Text(stringResource(R.string.link_confirm_from, plan.origin), style = MaterialTheme.typography.bodyMedium)
+                plan.servedBy?.let { Text(stringResource(R.string.link_confirm_served, it), style = MaterialTheme.typography.bodyMedium) }
+                plan.versionName?.let { Text(stringResource(R.string.link_confirm_version, it), style = MaterialTheme.typography.bodyMedium) }
+                plan.size?.let { Text(stringResource(R.string.link_confirm_size, humanSize(it)), style = MaterialTheme.typography.bodyMedium) }
+                Text(
+                    stringResource(R.string.link_confirm_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.link_go)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+/**
+ * A shared link that leads to a web page. Opened only on a tap: a page in the browser can start
+ * downloads by itself, and nobody asked for this one from inside the app.
+ */
+@Composable
+fun LinkPageDialog(url: String, onOpen: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Rounded.TravelExplore, null) },
+        title = { Text(stringResource(R.string.link_page_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(url, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.link_page_body), style = MaterialTheme.typography.bodyMedium)
+            }
+        },
+        confirmButton = { TextButton(onClick = onOpen) { Text(stringResource(R.string.link_open_page)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
 }
 
 // ---- downloads ------------------------------------------------------------------------------

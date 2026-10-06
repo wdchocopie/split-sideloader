@@ -77,18 +77,28 @@ object Notifications {
         )
     }
 
-    fun result(context: Context, title: String, text: String, uri: Uri?) {
-        post(
-            context,
-            NotificationCompat.Builder(context, CHANNEL_EVENTS)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                .setAutoCancel(true)
-                .setContentIntent(openApp(context, uri))
-                .build()
-        )
+    /** [launchPackage]: an app that was just installed, offered with an "Open app" button. */
+    fun result(context: Context, title: String, text: String, uri: Uri?, launchPackage: String? = null) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_EVENTS)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setAutoCancel(true)
+            .setContentIntent(openApp(context, uri))
+        launchPackage?.let { launch(context, it) }?.let {
+            builder.addAction(0, context.getString(R.string.action_launch), it)
+        }
+        post(context, builder.build())
+    }
+
+    /** The app's own launcher entry; null for one that has none. */
+    private fun launch(context: Context, packageName: String): PendingIntent? {
+        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) ?: return null
+        var flags = PendingIntent.FLAG_UPDATE_CURRENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags = flags or PendingIntent.FLAG_IMMUTABLE
+        return PendingIntent.getActivity(context, 8000 + (packageName.hashCode() and 0xfff), intent, flags)
     }
 
     fun updatesAvailable(context: Context, count: Int, firstLabel: String) {

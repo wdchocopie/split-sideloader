@@ -111,10 +111,28 @@ class Prefs private constructor(private val sp: SharedPreferences) {
         get() = sp.getBoolean(KEY_UPDATE_DOWNLOAD, false)
         set(v) = sp.edit { putBoolean(KEY_UPDATE_DOWNLOAD, v) }
 
-    /** Install a downloaded bundle without asking. Needs Shizuku or root. */
+    /**
+     * Install whatever a site in the in-app browser downloads, without asking. Off unless chosen:
+     * a page can start a download with no tap at all, and fake download buttons in ads are
+     * common on the very sites this is for. Needs Shizuku or root.
+     */
     var updateAutoInstall: Boolean
         get() = sp.getBoolean(KEY_UPDATE_INSTALL, false)
         set(v) = sp.edit { putBoolean(KEY_UPDATE_INSTALL, v) }
+
+    /**
+     * Install an update of a pinned app as soon as it is downloaded. On by default: it can only
+     * replace the same app, and the package manager takes it only with the same signature.
+     * Needs Shizuku or root; without them the update waits in a notification.
+     */
+    var pinnedAutoInstall: Boolean
+        get() = sp.getBoolean(KEY_PINNED_INSTALL, true)
+        set(v) = sp.edit { putBoolean(KEY_PINNED_INSTALL, v) }
+
+    /** Open an app once it has been installed and checked. */
+    var openAfterInstall: Boolean
+        get() = sp.getBoolean(KEY_OPEN_AFTER, false)
+        set(v) = sp.edit { putBoolean(KEY_OPEN_AFTER, v) }
 
     /** How long a pinned page may go unchecked before the app nudges you. 0 turns it off. */
     var updateReminderDays: Int
@@ -206,6 +224,8 @@ class Prefs private constructor(private val sp: SharedPreferences) {
         private const val KEY_UPDATE_WIFI = "update_wifi_only"
         private const val KEY_UPDATE_DOWNLOAD = "update_auto_download"
         private const val KEY_UPDATE_INSTALL = "update_auto_install"
+        private const val KEY_PINNED_INSTALL = "pinned_auto_install"
+        private const val KEY_OPEN_AFTER = "open_after_install"
         private const val KEY_UPDATE_REMINDER = "update_reminder_days"
         private const val KEY_LAST_REMINDER = "update_last_reminder"
         private const val KEY_OTA_CHANNEL = "ota_channel"

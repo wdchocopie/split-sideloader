@@ -9,6 +9,8 @@ import android.os.Build
 import android.os.Environment
 import android.webkit.CookieManager
 import androidx.core.content.edit
+import com.sideload.splitinstaller.core.AppVisibility
+import com.sideload.splitinstaller.core.Prefs
 import com.sideload.splitinstaller.core.apps.AppExporter
 import com.sideload.splitinstaller.core.bundle.BundleScanner
 import com.sideload.splitinstaller.core.install.BackendResolver
@@ -39,6 +41,12 @@ data class DownloadItem(
     val autoInstall: Boolean = false,
     /** The package this file is supposed to be, when it came from an update check. */
     val expectedPackage: String? = null,
+    /**
+     * Someone asked for this file to be installed — a link they confirmed, an app they picked
+     * in a search — so it is installed as it lands: silently where it can be, otherwise through
+     * the system's dialog while the app is on screen.
+     */
+    val installNow: Boolean = false,
 ) {
     val fraction: Float? get() = if (total > 0) (bytes.toFloat() / total).coerceIn(0f, 1f) else null
     val isBundle: Boolean get() = BundleScanner.isBundleName(fileName)
@@ -83,6 +91,7 @@ object Downloads {
 
     private const val PREFS = "downloads"
     private const val KEY_TRACKED = "tracked"
+    private const val KEY_HANDLED = "handled"
 
     private val _completed = MutableSharedFlow<DownloadItem>(extraBufferCapacity = 8)
     /** Finished downloads, for whoever is on screen to act on. */
@@ -100,6 +109,10 @@ object Downloads {
         expectedPackage: String? = null,
         /** False pauses the transfer on mobile data until an unmetered network is back. */
         allowMetered: Boolean = true,
+        /** See [DownloadItem.installNow]. */
+        installNow: Boolean = false,
+        /** The in-app browser's cookies for that site: wanted for a page's button, not for a pasted link. */
+        withCookies: Boolean = true,
     ): DownloadItem {
         val dm = context.getSystemService(DownloadManager::class.java)
         val name = DownloadNames.fileName(request.url, request.contentDisposition, request.mimeType)
@@ -116,20 +129,23 @@ object Downloads {
             .setAllowedOverMetered(allowMetered)
             .setAllowedOverRoaming(true)
         request.userAgent?.takeIf { it.isNotBlank() }?.let { req.addRequestHeader("User-Agent", it) }
-        runCatching { CookieManager.getInstance().getCookie(request.url) }.getOrNull()
-            ?.takeIf { it.isNotBlank() }?.let { req.addRequestHeader("Cookie", it) }
+        if (withCookies) {
+            runCatching { CookieManager.getInstance().getCookie(request.url) }.getOrNull()
+                ?.takeIf { it.isNotBlank() }?.let { req.addRequestHeader("Cookie", it) }
+        }
         request.referer?.takeIf { it.startsWith("https://") }?.let { req.addRequestHeader("Referer", it) }
         setDestination(context, req, name)
 
         val id = dm.enqueue(req)
-        track(context, id, Tracked(host, autoInstall, expectedPackage, request.url))
+        track(context, id, Tracked(host, autoInstall, expectedPackage, request.url, installNow))
         _changed.tryEmit(Unit)
         EventLog.info(
-            "download started: $name from ${host ?: "?"}" + if (autoInstall) " (installs itself when done)" else ""
+            "download started: $name from ${host ?: "?"}" +
+                if (autoInstall || installNow) " (installs itself when done)" else ""
         )
         return DownloadItem(
             id, name, host, DownloadStatus.PENDING, 0, -1, 0, null, request.url,
-            System.currentTimeMillis(), autoInstall, expectedPackage,
+            System.currentTimeMillis(), autoInstall, expectedPackage, installNow,
         )
     }
 
@@ -195,6 +211,7 @@ object Downloads {
                         time = c.getLong(timeCol),
                         autoInstall = info?.autoInstall == true,
                         expectedPackage = info?.expectedPackage,
+                        installNow = info?.installNow == true,
                     )
                 }
             }
@@ -228,6 +245,8 @@ object Downloads {
     internal fun onFinished(context: Context, id: Long) {
         if (id !in tracked(context)) return
         val item = list(context).firstOrNull { it.id == id } ?: return
+        // Once per download: the same one announced again must not install it again.
+        if ((item.status == DownloadStatus.DONE || item.status == DownloadStatus.FAILED) && !firstTime(context, id)) return
         when (item.status) {
             DownloadStatus.DONE -> {
                 EventLog.info("download finished: ${item.fileName}")
@@ -239,7 +258,14 @@ object Downloads {
                     item.expectedPackage == BuildConfig.APPLICATION_ID ->
                         OtaInstallWorker.enqueue(context, uri, item.sourceUrl, replace = true)
                     // The worker checks there is a silent method before it installs anything.
-                    item.autoInstall -> InstallWorker.enqueue(context, uri, item.expectedPackage)
+                    item.autoInstall -> InstallWorker.enqueue(context, uri, item.expectedPackage, name = item.fileName)
+                    item.installNow -> when {
+                        BackendResolver.backgroundSilent(context, Prefs.get(context).backend) != null ->
+                            InstallWorker.enqueue(context, uri, item.expectedPackage, asked = true, name = item.fileName)
+                        // The app on screen opens it and asks through the system's dialog.
+                        AppVisibility.foreground -> Unit
+                        else -> Notifications.downloaded(context, item.fileName, uri)
+                    }
                     else -> Notifications.downloaded(context, item.fileName, uri)
                 }
             }
@@ -266,9 +292,14 @@ object Downloads {
          * permanent redirect, so its column cannot say which release a file belongs to.
          */
         val requestedUrl: String? = null,
+        val installNow: Boolean = false,
     )
 
-    /** id → what the download is for, kept as "id|host|auto|package|url" strings; the URL is last. */
+    /**
+     * id → what the download is for, kept as "id|host|auto|package|url" strings; the URL is last.
+     * The auto slot is "1" for an automatic install, "2" for [DownloadItem.installNow] — which an
+     * older build reads as not automatic, the safe side.
+     */
     private fun tracked(context: Context): Map<Long, Tracked> =
         prefs(context).getStringSet(KEY_TRACKED, emptySet()).orEmpty().mapNotNull { entry ->
             val parts = entry.split('|', limit = 5)
@@ -278,6 +309,7 @@ object Downloads {
                 autoInstall = parts.getOrNull(2) == "1",
                 expectedPackage = parts.getOrNull(3)?.ifBlank { null },
                 requestedUrl = parts.getOrNull(4)?.ifBlank { null },
+                installNow = parts.getOrNull(2) == "2",
             )
         }.toMap()
 
@@ -287,11 +319,27 @@ object Downloads {
         next += listOf(
             id.toString(),
             info.host.orEmpty(),
-            if (info.autoInstall) "1" else "0",
+            when {
+                info.installNow -> "2"
+                info.autoInstall -> "1"
+                else -> "0"
+            },
             info.expectedPackage.orEmpty(),
             info.requestedUrl.orEmpty(),
         ).joinToString("|")
-        prefs(context).edit { putStringSet(KEY_TRACKED, next.toList().takeLast(50).toSet()) }
+        // The newest 50 by id: a set has no order, and dropping a running one would lose it.
+        val kept = next.sortedBy { it.substringBefore('|').toLongOrNull() ?: 0L }.takeLast(50).toSet()
+        prefs(context).edit { putStringSet(KEY_TRACKED, kept) }
+    }
+
+    /** True the first time a finished download is seen; the newest 100 are remembered. */
+    @Synchronized
+    private fun firstTime(context: Context, id: Long): Boolean {
+        val seen = prefs(context).getStringSet(KEY_HANDLED, emptySet()).orEmpty()
+        if (id.toString() in seen) return false
+        val next = (seen + id.toString()).sortedBy { it.toLongOrNull() ?: 0L }.takeLast(100).toSet()
+        prefs(context).edit { putStringSet(KEY_HANDLED, next) }
+        return true
     }
 
     @Synchronized

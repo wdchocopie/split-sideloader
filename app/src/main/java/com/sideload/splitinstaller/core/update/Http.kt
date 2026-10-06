@@ -41,16 +41,15 @@ object Http {
             }
             return stream.use { input ->
                 val buffer = ByteArray(16 * 1024)
-                val out = StringBuilder()
-                var total = 0
+                // Decoded once at the end: a character split across two reads would come out garbled.
+                val out = java.io.ByteArrayOutputStream()
                 while (true) {
                     val n = input.read(buffer)
                     if (n <= 0) break
-                    total += n
-                    if (total > MAX_BYTES) throw IOException("response too large")
-                    out.append(String(buffer, 0, n, Charsets.UTF_8))
+                    if (out.size() + n > MAX_BYTES) throw IOException("response too large")
+                    out.write(buffer, 0, n)
                 }
-                out.toString()
+                out.toString(Charsets.UTF_8.name())
             }
         } finally {
             connection.disconnect()

@@ -1,0 +1,2 @@
+Mới: tải và cài từ một link (dán hoặc chia sẻ), thêm nguồn IzzyOnDroid, GitLab, Codeberg, tìm trên F-Droid, mở app sau khi cài.
+New: download and install from a link, IzzyOnDroid/GitLab/Codeberg sources, F-Droid search, open after install.

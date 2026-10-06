@@ -101,6 +101,29 @@ liệu mẫu đúng tình huống app sinh ra để xử lý: ZZZ cài qua QooAp
 
 ## Tính năng
 
+### Mới trong 1.5.5 — tải từ link, thêm nguồn tự động, mở app sau khi cài
+
+- **Tải từ link.** Tab Nguồn có thẻ **Tải từ link**: dán một link (hoặc bấm Dán), bấm **Tải và
+  cài**. Từ trình duyệt hay Telegram thì **Chia sẻ → "Tải và cài"**. App kiểm tra link trước
+  (chỉ https, theo chuyển hướng, đọc vài KB đầu để biết đó là file APK/gói hay một trang web),
+  hỏi lại một lần với tên file, nguồn, dung lượng, rồi tải trong app và **cài luôn**: im lặng
+  nếu có Shizuku/root, còn không thì mở gói và tự bấm Cài để hộp thoại của Android hiện ra.
+  Link chia sẻ từ app khác **không bao giờ** tự tải khi bạn chưa bấm đồng ý.
+- **Link tới trang của app cũng được.** Trang app trên F-Droid hay IzzyOnDroid, hoặc repo trên
+  GitHub, GitLab, Codeberg: app hỏi API của nguồn đó, lấy bản mới nhất hợp với máy, rồi tải và
+  cài như trên. Link tới một trang web bình thường thì mở trong trình duyệt của app.
+- **Thêm nguồn tự cập nhật:** IzzyOnDroid, GitLab (cả máy chủ riêng), Codeberg/Forgejo — ghim
+  một app vào đó là tự kiểm tra, tự tải, tự cài như F-Droid và GitHub.
+- **Tìm trên F-Droid ngay trong app.** Chọn chip F-Droid, gõ tên app, bấm tìm: kết quả hiện ngay
+  với nút **Cài**.
+- **Mở app sau khi cài** (Tùy chọn → Khi cài): cài xong và kiểm chứng đạt thì mở luôn app đó.
+  Cài ở nền thì thông báo có nút **Mở ứng dụng**.
+- **Tự cài, bật sẵn ở chỗ an toàn:** bản cập nhật của app đã ghim tự cài ngay khi tải xong (mặc
+  định **bật** — chỉ thay được đúng app đó, cùng chữ ký). File tải từ **trang web** trong trình
+  duyệt của app vẫn **tắt** mặc định: các trang tải hay có nút "Tải xuống" giả trong quảng cáo,
+  và trang web có thể tự bắt đầu tải mà bạn không bấm gì — bật thì mọi file đó được cài im lặng.
+- Máy chỉ có root giờ cũng tự cài được khi root là cách cài đã chọn (trước đây chỉ Shizuku).
+
 ### Mới trong 1.5.4 — đường cập nhật không còn kẹt được
 
 - **Tự cập nhật có đường lui.** Shizuku hay root mà không cài được bản mới thì lần thử kế
@@ -360,6 +383,7 @@ mở bằng trình duyệt ngoài; file về `Download` và app tìm thấy ở 
 | Đặt lịch lại sau khi reboot | có | — |
 | Kiểm tra bản mới của chính app (OTA) | có | khai báo kênh OTA |
 | Tải và cài bản OTA | có | kênh OTA + Shizuku/root |
+| Tải và cài từ một link | sau một lần bấm đồng ý | link https tới file, hoặc trang app trên F-Droid/IzzyOnDroid/GitHub/GitLab/Codeberg |
 | Tải từ APKMirror/APKPure | **không** | bạn bấm nút tải trên trang (xem phần cuối) |
 | Cài khi không có Shizuku/root | **không** | một lần chạm vào hộp thoại của hệ thống |
 
@@ -519,6 +543,8 @@ Test chạy trên JVM, không cần máy Android:
 | `UpdateCheckerTest` | Đọc JSON thật của F-Droid và GitHub, chọn asset theo ABI, rút gọn link repo |
 | `OtaTest` | Nhận diện kênh (chặn http), đọc manifest, so phiên bản của chính app |
 | `RomQuirksTest` | Khi nào coi là bộ cài của máy "chiếm" phiên cài, và khi nào được đổ lỗi cho nó |
+| `SourceApisTest` | IzzyOnDroid (mã phiên bản dạng chuỗi), Codeberg, GitLab (link + APK trong phần mô tả), tìm F-Droid, nhận nguồn từ link, giá trị JSON `null` không thành link |
+| `LinksTest` | Tách link khỏi đoạn chia sẻ, chỉ https, phân biệt file zip với trang web, đặt đuôi cho file không tên, dung lượng từ `Content-Range`, luật tự cài (gói khác, chính app, chữ ký, hạ cấp) |
 | `ScreenshotTest` | 27 màn hình, sáng/tối/AMOLED, tiếng Việt + English, so với ảnh gốc; giờ và múi giờ được ghim, nên ảnh không đổi theo máy hay theo ngày |
 
 Và một bộ chạy **trên máy thật** (cắm adb, kể cả adb qua Wi-Fi). Quyền Shizuku gắn với app đã
@@ -535,6 +561,7 @@ cài, nên cài bản debug một lần, mở Shizuku cho phép nó, rồi chạ
 | Test | Kiểm |
 |---|---|
 | `ShellDeviceTest` | Lệnh qua Shizuku chạy và được chờ đúng, stdin 3 MB tới nơi, lệnh treo bị cắt, mã thoát đúng; bộ cài hệ thống dò ra không phải hộp chọn app. Shizuku không chạy thì các test Shizuku bỏ qua; chạy mà chưa cho phép app thì chúng **báo lỗi**, để kết quả xanh luôn có nghĩa là đã thật sự chạy. |
+| `SourceNetworkDeviceTest` | Hỏi thật API của GitHub, IzzyOnDroid, Codeberg, GitLab và tìm F-Droid trên máy (cần mạng): `org.json` của Android đọc JSON `null` thành chữ `"null"`, điều test JVM không thấy được. |
 
 ---
 

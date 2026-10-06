@@ -97,15 +97,32 @@
             </intent-filter>
         </activity>
 
+        <!-- A link shared from a browser or a chat app: checked, then offered for download and
+             install after a confirmation. A separate entry so that it reads "Download and install"
+             in the share sheet. -->
+        <activity-alias
+            android:name=".DownloadLink"
+            android:exported="true"
+            android:targetActivity=".MainActivity">
+            <!-- The label on the filter names the share target only, not the app's window. -->
+            <intent-filter android:label="@string/share_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Result of a PackageInstaller session commit -->
         <receiver
             android:name=".core.install.InstallEventReceiver"
             android:exported="false" />
 
-        <!-- Sent by the system DownloadManager, hence exported; ids are checked against our own list -->
+        <!-- Sent by the system DownloadManager, hence exported; only it holds the permission, and
+             ids are checked against our own list. -->
         <receiver
             android:name=".core.sources.DownloadCompleteReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.SEND_DOWNLOAD_COMPLETED_INTENTS">
             <intent-filter>
                 <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
             </intent-filter>

@@ -1,6 +1,9 @@
 package com.sideload.splitinstaller.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -92,8 +95,12 @@ class AppDetailActions(
     val onRepairWithBundle: () -> Unit = {},
     val onFindUpdate: (String) -> Unit = {},
     val onCheckUpdate: (String) -> Unit = {},
-    val onPinFDroid: (pkg: String, label: String?, onResult: (Boolean) -> Unit) -> Unit = { _, _, _ -> },
-    val onPinGitHub: (pkg: String, label: String?, input: String) -> Boolean = { _, _, _ -> false },
+    /** F-Droid or IzzyOnDroid: asks the repository first, then pins. */
+    val onPinPackage: (pkg: String, label: String?, kind: UpdateKind, onResult: (Boolean) -> Unit) -> Unit =
+        { _, _, _, _ -> },
+    /** GitHub, GitLab or Forgejo: false when the typed project does not parse. */
+    val onPinRelease: (pkg: String, label: String?, kind: UpdateKind, input: String) -> Boolean =
+        { _, _, _, _ -> false },
     val onPinWeb: (pkg: String, label: String?) -> Unit = { _, _ -> },
     val onUnpin: (String) -> Unit = {},
     val onDownloadUpdate: (UpdateResult) -> Unit = {},
@@ -407,13 +414,7 @@ private fun UpdateCard(
             trailing = {
                 if (pin != null) {
                     StatusPill(
-                        stringResource(
-                            when (pin.kind) {
-                                UpdateKind.FDROID -> R.string.pin_fdroid
-                                UpdateKind.GITHUB -> R.string.pin_github
-                                UpdateKind.WEB -> R.string.pin_web
-                            }
-                        ),
+                        stringResource(pinName(pin.kind)),
                         if (pin.kind == UpdateKind.WEB) Tone.NEUTRAL else Tone.INFO,
                     )
                 }
@@ -538,7 +539,8 @@ private fun PinSourceDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.pin_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Six sources and a field do not fit a small phone without scrolling.
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.pin_body), style = MaterialTheme.typography.bodySmall)
                 UpdateKind.entries.forEach { kind ->
                     Row(
@@ -548,36 +550,27 @@ private fun PinSourceDialog(
                         RadioButton(selected = choice == kind, onClick = { choice = kind; error = null })
                         Spacer(Modifier.width(4.dp))
                         Column {
+                            Text(stringResource(pinName(kind)), style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                stringResource(
-                                    when (kind) {
-                                        UpdateKind.FDROID -> R.string.pin_fdroid
-                                        UpdateKind.GITHUB -> R.string.pin_github
-                                        UpdateKind.WEB -> R.string.pin_web
-                                    }
-                                ),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                            Text(
-                                stringResource(
-                                    when (kind) {
-                                        UpdateKind.FDROID -> R.string.pin_fdroid_desc
-                                        UpdateKind.GITHUB -> R.string.pin_github_desc
-                                        UpdateKind.WEB -> R.string.pin_web_desc
-                                    }
-                                ),
+                                stringResource(pinDesc(kind)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
-                if (choice == UpdateKind.GITHUB) {
+                val field = when (choice) {
+                    UpdateKind.GITHUB -> R.string.pin_github_field to "owner/repo"
+                    UpdateKind.GITLAB -> R.string.pin_gitlab_field to "gitlab.com/group/project"
+                    UpdateKind.FORGEJO -> R.string.pin_forgejo_field to "codeberg.org/owner/repo"
+                    else -> null
+                }
+                field?.let { (fieldLabel, hint) ->
                     OutlinedTextField(
                         repo,
                         { repo = it; error = null },
-                        label = { Text(stringResource(R.string.pin_github_field)) },
-                        placeholder = { Text("owner/repo") },
+                        label = { Text(stringResource(fieldLabel)) },
+                        placeholder = { Text(hint) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -590,13 +583,26 @@ private fun PinSourceDialog(
         confirmButton = {
             TextButton(onClick = {
                 when (choice) {
-                    UpdateKind.FDROID -> {
-                        actions.onPinFDroid(packageName, label) { found ->
-                            if (found) onDismiss() else error = R.string.pin_fdroid_missing
+                    UpdateKind.FDROID, UpdateKind.IZZYONDROID -> {
+                        val kind = choice
+                        actions.onPinPackage(packageName, label, kind) { found ->
+                            if (found) {
+                                onDismiss()
+                            } else {
+                                error = if (kind == UpdateKind.FDROID) R.string.pin_fdroid_missing else R.string.pin_izzy_missing
+                            }
                         }
                     }
-                    UpdateKind.GITHUB -> {
-                        if (actions.onPinGitHub(packageName, label, repo)) onDismiss() else error = R.string.pin_github_invalid
+                    UpdateKind.GITHUB, UpdateKind.GITLAB, UpdateKind.FORGEJO -> {
+                        if (actions.onPinRelease(packageName, label, choice, repo)) {
+                            onDismiss()
+                        } else {
+                            error = when (choice) {
+                                UpdateKind.GITLAB -> R.string.pin_gitlab_invalid
+                                UpdateKind.FORGEJO -> R.string.pin_forgejo_invalid
+                                else -> R.string.pin_github_invalid
+                            }
+                        }
                     }
                     UpdateKind.WEB -> {
                         actions.onPinWeb(packageName, label)
@@ -607,6 +613,26 @@ private fun PinSourceDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
+}
+
+@StringRes
+private fun pinName(kind: UpdateKind): Int = when (kind) {
+    UpdateKind.FDROID -> R.string.pin_fdroid
+    UpdateKind.IZZYONDROID -> R.string.pin_izzy
+    UpdateKind.GITHUB -> R.string.pin_github
+    UpdateKind.GITLAB -> R.string.pin_gitlab
+    UpdateKind.FORGEJO -> R.string.pin_forgejo
+    UpdateKind.WEB -> R.string.pin_web
+}
+
+@StringRes
+private fun pinDesc(kind: UpdateKind): Int = when (kind) {
+    UpdateKind.FDROID -> R.string.pin_fdroid_desc
+    UpdateKind.IZZYONDROID -> R.string.pin_izzy_desc
+    UpdateKind.GITHUB -> R.string.pin_github_desc
+    UpdateKind.GITLAB -> R.string.pin_gitlab_desc
+    UpdateKind.FORGEJO -> R.string.pin_forgejo_desc
+    UpdateKind.WEB -> R.string.pin_web_desc
 }
 
 /** Split Sideloader's own entry: no source to pin, its channel is built in. */

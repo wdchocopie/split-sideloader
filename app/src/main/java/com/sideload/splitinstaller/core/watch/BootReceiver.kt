@@ -25,9 +25,11 @@ class BootReceiver : BroadcastReceiver() {
 
                 // Silent installs die with Shizuku at every reboot on an unrooted device.
                 // Say so once, rather than letting automatic updates quietly stop working.
+                // Only for what someone chose to install by itself. Pinned updates without a
+                // silent method simply wait in a notification, which needs no warning at boot.
                 val needsSilent = prefs.updateAutoInstall || (prefs.watchEnabled && prefs.autoInstall)
                 if (needsSilent && intent.action == Intent.ACTION_BOOT_COMPLETED) {
-                    val silent = BackendResolver.probe(context).silentAvailable
+                    val silent = BackendResolver.backgroundSilent(context, prefs.backend) != null
                     if (!silent) runCatching { Notifications.shizukuGone(context) }
                 }
             }

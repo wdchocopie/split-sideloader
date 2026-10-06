@@ -15,6 +15,10 @@ import com.sideload.splitinstaller.core.bundle.BundleInspector
 import com.sideload.splitinstaller.core.bundle.BundleScanner
 import com.sideload.splitinstaller.core.bundle.Severity
 import com.sideload.splitinstaller.core.bundle.SplitSelector
+import com.sideload.splitinstaller.BuildConfig
+import com.sideload.splitinstaller.core.install.AutoInstall
+import com.sideload.splitinstaller.core.sign.ApkSignatures
+import com.sideload.splitinstaller.core.sign.SignatureMatch
 import com.sideload.splitinstaller.core.install.BackendKind
 import com.sideload.splitinstaller.core.install.BackendResolver
 import com.sideload.splitinstaller.core.install.BackendState
@@ -188,6 +192,23 @@ class WatchService : LifecycleService() {
         val problems = SplitSelector.validate(info, choice.selected)
         if (problems.isNotEmpty()) {
             problems.forEach { EventLog.add(it.severity, it.message) }
+            Notifications.found(this, file.name, uri)
+            return
+        }
+        // The same rule as every install nobody taps for: not this app, not another signer,
+        // not an older version.
+        val block = AutoInstall.blockedBy(
+            packageName = pkg,
+            expectedPackage = null,
+            ownPackage = BuildConfig.APPLICATION_ID,
+            bundleHasError = info.hasError,
+            selectionProblems = false,
+            signerMismatch = ApkSignatures.compare(this, pkg, info.signerSha256) == SignatureMatch.MISMATCH,
+            installedVersionCode = pkg?.let { InstallVerifier.installedVersion(this, it)?.first },
+            versionCode = info.versionCode,
+        )
+        if (block != null) {
+            EventLog.warn("not installing ${file.name} by itself: " + block.name.lowercase().replace('_', ' '))
             Notifications.found(this, file.name, uri)
             return
         }

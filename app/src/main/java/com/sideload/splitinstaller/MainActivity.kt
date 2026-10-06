@@ -85,8 +85,14 @@ import com.sideload.splitinstaller.core.sources.DownloadStatus
 import com.sideload.splitinstaller.core.sources.Downloads
 import com.sideload.splitinstaller.ui.BrowserActions
 import com.sideload.splitinstaller.ui.BrowserScreen
+import com.sideload.splitinstaller.core.install.BackendResolver
+import com.sideload.splitinstaller.core.sources.Links
+import com.sideload.splitinstaller.ui.LinkConfirmDialog
+import com.sideload.splitinstaller.ui.LinkPageDialog
 import com.sideload.splitinstaller.ui.SourcesActions
 import com.sideload.splitinstaller.ui.SourcesScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.sideload.splitinstaller.ui.SourcesViewModel
 import com.sideload.splitinstaller.ui.Tabs
 import kotlinx.coroutines.launch
@@ -148,7 +154,21 @@ class MainActivity : ComponentActivity() {
             val theme by prefs.theme.collectAsState()
             SplitSideloaderTheme(theme) { Root() }
         }
-        handleIntent(intent)
+        // Only a fresh start: turning the phone or a language change recreates the activity with
+        // the same intent, which must not open the file or download the link a second time.
+        if (savedInstanceState == null) handleIntent(intent)
+
+        // An app just installed and checked, opened while this one is in front.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                vm.pendingLaunch.collect { pkg ->
+                    if (pkg != null) {
+                        vm.launchHandled()
+                        runCatching { launchApp(pkg) }
+                    }
+                }
+            }
+        }
 
         // A bundle that finishes downloading while the app is open goes straight to the
         // install screen, unless an install is already under way, which it must not interrupt.
@@ -159,10 +179,23 @@ class MainActivity : ComponentActivity() {
                     if (item.status != DownloadStatus.DONE || !item.isBundle || uri == null) return@collect
                     if (item.expectedPackage == packageName) return@collect
                     val current = vm.state.value
-                    // A download marked "installs itself" is already with InstallWorker;
-                    // opening the same file here would run two installs over each other.
-                    if (item.autoInstall && current.device?.silentAvailable == true) {
-                        toast(getString(R.string.notif_installing))
+                    // A download that installs itself is with InstallWorker when a silent method is
+                    // ready — decided the same way Downloads.onFinished did — and opening the same
+                    // file here too would run two installs over each other.
+                    val selfInstalling = item.autoInstall || item.installNow
+                    val silent = if (selfInstalling) {
+                        withContext(Dispatchers.IO) { BackendResolver.backgroundSilent(this@MainActivity, prefs.backend) }
+                    } else {
+                        null
+                    }
+                    if (selfInstalling && silent != null) {
+                        toast(getString(R.string.installing_now, item.fileName))
+                        return@collect
+                    }
+                    // Asked to be installed and no silent method: here, through the system's
+                    // dialog, while someone is looking.
+                    if (item.installNow) {
+                        vm.openAndInstall(uri, item.expectedPackage)
                         return@collect
                     }
                     if (!current.installing && current.bundle == null) {
@@ -208,7 +241,17 @@ class MainActivity : ComponentActivity() {
         if (intent?.getBooleanExtra(EXTRA_SHOW_OTA, false) == true) {
             showOtaRequest = true
         }
-        val uri: Uri? = when (intent?.action) {
+        // Reopened from the recent apps list: the share or file it came with was dealt with then.
+        if (intent == null || (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return
+        // A shared link: checked, then offered with a confirmation; never downloaded unasked.
+        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
+            Links.extractUrl(intent.getCharSequenceExtra(Intent.EXTRA_TEXT))?.let { url ->
+                srcVm.setLink(url)
+                srcVm.prepareLink(url, shared = true)
+            }
+            return
+        }
+        val uri: Uri? = when (intent.action) {
             Intent.ACTION_VIEW -> intent.data
             Intent.ACTION_SEND -> @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM)
             else -> null
@@ -273,6 +316,14 @@ class MainActivity : ComponentActivity() {
         }
         BackHandler(enabled = state.bundle != null) { vm.closeBundle() }
         BackHandler(enabled = overlay == 4) { appsVm.closeDetail() }
+
+        // Above every screen, since a link can be shared in while any of them is open.
+        sources.link.plan?.let { plan ->
+            LinkConfirmDialog(plan, onConfirm = srcVm::confirmLink, onDismiss = srcVm::dismissLink)
+        }
+        sources.link.page?.let { page ->
+            LinkPageDialog(page, onOpen = srcVm::openLinkPage, onDismiss = srcVm::dismissLinkPage)
+        }
 
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             AnimatedContent(
@@ -356,8 +407,8 @@ class MainActivity : ComponentActivity() {
                                 onRepairWithBundle = { pickFile.launch(arrayOf("*/*")) },
                                 onFindUpdate = { query -> srcVm.searchFor(query) },
                                 onCheckUpdate = appsVm::checkUpdate,
-                                onPinFDroid = { pkg, label, onResult -> appsVm.pinFDroid(pkg, label) { onResult(it) } },
-                                onPinGitHub = { pkg, label, input -> appsVm.pinGitHub(pkg, label, input) },
+                                onPinPackage = { pkg, label, kind, onResult -> appsVm.pinPackage(pkg, label, kind) { onResult(it) } },
+                                onPinRelease = { pkg, label, kind, input -> appsVm.pinRelease(pkg, label, kind, input) },
                                 onPinWeb = { pkg, label ->
                                     // Find the page first; the browser then offers to pin it.
                                     srcVm.searchFor(label ?: pkg, pinFor = pkg, pinLabel = label)
@@ -474,6 +525,12 @@ class MainActivity : ComponentActivity() {
                             onCancelDownload = srcVm::cancel,
                             onForgetDownload = srcVm::forget,
                             onOpenExternal = ::openExternal,
+                            onLinkText = srcVm::setLink,
+                            onLinkGo = { srcVm.prepareLink() },
+                            onLinkOpenPage = srcVm::openLinkPage,
+                            onFDroidInstall = { hit -> srcVm.installFromFDroid(hit) },
+                            onFDroidPage = { pkg -> srcVm.openUrl("https://f-droid.org/packages/$pkg") },
+                            onFDroidClose = srcVm::clearFDroid,
                         ),
                         modifier = inner,
                     )
@@ -538,6 +595,8 @@ class MainActivity : ComponentActivity() {
         updateWifiOnly = prefs.updateWifiOnly,
         updateAutoDownload = prefs.updateAutoDownload,
         updateAutoInstall = prefs.updateAutoInstall,
+        pinnedAutoInstall = prefs.pinnedAutoInstall,
+        openAfterInstall = prefs.openAfterInstall,
         language = prefs.language,
         otaChannel = prefs.otaChannel,
         otaAutoDownload = prefs.otaAutoDownload,
@@ -557,6 +616,8 @@ class MainActivity : ComponentActivity() {
         prefs.updateWifiOnly = v.updateWifiOnly
         prefs.updateAutoDownload = v.updateAutoDownload
         prefs.updateAutoInstall = v.updateAutoInstall
+        if (v.pinnedAutoInstall != prefs.pinnedAutoInstall) prefs.pinnedAutoInstall = v.pinnedAutoInstall
+        if (v.openAfterInstall != prefs.openAfterInstall) prefs.openAfterInstall = v.openAfterInstall
         // A different language means different resources, so the screen is rebuilt.
         val languageChanged = prefs.language != v.language
         prefs.language = v.language

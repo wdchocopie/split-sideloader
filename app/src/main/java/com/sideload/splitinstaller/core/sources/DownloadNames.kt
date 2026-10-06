@@ -32,6 +32,13 @@ object DownloadNames {
 
     private val KNOWN_EXTENSIONS = setOf("apk", "apks", "apkm", "xapk", "apkx", "zip", "obb")
 
+    /**
+     * A Content-Disposition naming [name], for a download whose link carries no file name of
+     * its own but whose source said what the file is called.
+     */
+    fun attachment(name: String?): String? =
+        name?.let(::sanitize)?.takeIf { it.isNotBlank() }?.let { "attachment; filename=\"$it\"" }
+
     /** RFC 6266: an encoded `filename*` wins over a plain `filename`. */
     fun fromContentDisposition(header: String?): String? {
         if (header.isNullOrBlank()) return null

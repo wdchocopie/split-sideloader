@@ -5,6 +5,7 @@ import com.sideload.splitinstaller.R
 import com.sideload.splitinstaller.core.bundle.FindingCode
 import com.sideload.splitinstaller.core.install.FailureCode
 import com.sideload.splitinstaller.core.ota.OtaProblem
+import com.sideload.splitinstaller.core.sources.LinkProblem
 
 // Code -> string resource. Plain functions, so the watch service can use them for
 // notifications as well as the UI for screens.
@@ -59,6 +60,16 @@ fun failureHintRes(code: String?): Int? {
         c == FailureCode.SHELL_UNAVAILABLE -> R.string.hint_shell
         else -> null
     }
+}
+
+/** Why a pasted or shared link could not be used. */
+@StringRes
+fun linkProblemRes(code: String): Int = when (code) {
+    LinkProblem.NOT_A_LINK -> R.string.link_p_not_a_link
+    LinkProblem.CLEARTEXT -> R.string.link_p_cleartext
+    LinkProblem.REDIRECTS -> R.string.link_p_redirects
+    LinkProblem.NO_FILE -> R.string.link_p_no_file
+    else -> R.string.link_p_unreachable
 }
 
 /** Why a downloaded copy of this app was refused. */

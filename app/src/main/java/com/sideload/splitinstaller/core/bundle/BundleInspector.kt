@@ -93,8 +93,15 @@ object BundleInspector {
     fun inspect(context: Context, uri: Uri): BundleInfo {
         val name = displayName(context, uri)
         val source = openSource(context, uri)
+        // By what is inside first: a downloaded bundle may be named .apk, a plain APK .zip.
+        // An APK has its manifest at the root and no APKs inside; anything else is a bundle.
+        val singleByContent = runCatching {
+            ZipReader(source, ownsSource = false).use { zip ->
+                zip["AndroidManifest.xml"] != null && zip.entries.none { it.name.endsWith(".apk", ignoreCase = true) }
+            }
+        }.getOrNull()
         val info = try {
-            if (name.lowercase(Locale.ROOT).endsWith(".apk")) {
+            if (singleByContent ?: name.lowercase(Locale.ROOT).endsWith(".apk")) {
                 singleApk(uri, name, source)
             } else {
                 ZipReader(source, ownsSource = false).use { zip -> bundle(uri, name, zip, source.size) }

@@ -18,7 +18,12 @@ import com.sideload.splitinstaller.core.bundle.Severity
 import com.sideload.splitinstaller.core.bundle.SplitApk
 import com.sideload.splitinstaller.core.bundle.SplitKind
 import com.sideload.splitinstaller.core.bundle.SplitSelector
+import com.sideload.splitinstaller.BuildConfig
+import com.sideload.splitinstaller.core.install.AutoInstall
 import com.sideload.splitinstaller.core.install.BackendKind
+import com.sideload.splitinstaller.core.verify.Verdict
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import com.sideload.splitinstaller.core.install.BackendResolver
 import com.sideload.splitinstaller.core.install.BackendState
 import com.sideload.splitinstaller.core.install.DeviceReport
@@ -42,6 +47,7 @@ import com.sideload.splitinstaller.core.verify.VerifyReport
 import com.sideload.splitinstaller.core.watch.WatchService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import com.sideload.splitinstaller.core.watch.Notifications
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -607,6 +613,67 @@ class SideloadViewModel(app: Application) : AndroidViewModel(app) {
         }
         // An install can teach the app something about this phone's installer.
         refreshCapabilities()
+
+        // Only an install that checked out as working ("checked and works", as the setting says).
+        val pkg = (outcome as? InstallOutcome.Ok)?.packageName
+        val verdict = (outcome as? InstallOutcome.Ok)?.report?.verdict
+        if (prefs.openAfterInstall && pkg != null && pkg != BuildConfig.APPLICATION_ID &&
+            (verdict == Verdict.OK || verdict == Verdict.UNKNOWN)
+        ) {
+            _pendingLaunch.value = pkg
+        }
+    }
+
+    private val _pendingLaunch = MutableStateFlow<String?>(null)
+
+    /**
+     * An app to open now that it is installed and checked. Held until the screen is in front —
+     * the system's dialog may still be closing — and cleared once opened, so turning the phone
+     * does not open it again.
+     */
+    val pendingLaunch: StateFlow<String?> = _pendingLaunch
+
+    fun launchHandled() {
+        _pendingLaunch.value = null
+    }
+
+    /**
+     * Opens a file someone asked to install and installs it at once, by the same rule as an
+     * install nobody watches. Anything off — a problem with the bundle or the splits, another
+     * signer, an older version, this phone's dialog dropping splits — and it stays open for the
+     * person to decide.
+     */
+    fun openAndInstall(uri: Uri, expectedPackage: String? = null) = viewModelScope.launch {
+        // Never over an install that is running or a bundle someone is looking at.
+        val before = _state.value
+        if (before.installing || before.opening || before.bundle != null) {
+            EventLog.info("busy with another bundle; ${uri.lastPathSegment.orEmpty()} waits in its notification")
+            Notifications.downloaded(getApplication(), uri.lastPathSegment.orEmpty(), uri)
+            return@launch
+        }
+        open(uri).join()
+        val s = _state.value
+        val info = s.bundle ?: return@launch
+        val block = AutoInstall.blockedBy(
+            packageName = info.packageName,
+            expectedPackage = expectedPackage,
+            ownPackage = BuildConfig.APPLICATION_ID,
+            bundleHasError = info.hasError,
+            selectionProblems = s.selectionProblems.isNotEmpty(),
+            signerMismatch = s.signatureMatch == SignatureMatch.MISMATCH,
+            installedVersionCode = s.installedState?.versionCode,
+            versionCode = info.versionCode,
+        )
+        val backend = effectiveBackend()
+        val dropsSplits = backend == BackendKind.PACKAGE_INSTALLER && s.selection.size > 1 &&
+            s.device?.installerDropsSplits == true
+        when {
+            block != null -> EventLog.info("not installing ${info.displayName} by itself: " + block.name.lowercase().replace('_', ' '))
+            backend == null -> EventLog.info("no install method is ready; ${info.displayName} waits for you")
+            dropsSplits -> EventLog.warn("this phone's dialog drops splits; ${info.displayName} waits for you to pick a method")
+            Busy.any || s.installing -> EventLog.info("another install is running; ${info.displayName} waits")
+            else -> install()
+        }
     }
 
     /** The install's confirmation dialog, which can be closed without an answer. */

@@ -16,6 +16,7 @@ import com.sideload.splitinstaller.core.UpdateInterval
 import com.sideload.splitinstaller.core.log.EventLog
 import com.sideload.splitinstaller.core.ota.OtaChannel
 import com.sideload.splitinstaller.core.ota.OtaFlow
+import com.sideload.splitinstaller.core.sources.DownloadNames
 import com.sideload.splitinstaller.core.sources.DownloadRequest
 import com.sideload.splitinstaller.core.sources.Downloads
 import com.sideload.splitinstaller.core.watch.Notifications
@@ -72,18 +73,20 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
     /** Only sources that publish a direct file; a pinned page needs your tap by design. */
     private fun startDownloads(context: Context, prefs: Prefs, updates: List<UpdateResult>) {
-        val existing = Downloads.list(context).map { it.fileName }.toSet()
-        val autoInstall = prefs.updateAutoInstall
+        // By the link it came from: two sources can name their files alike (F-Droid and
+        // IzzyOnDroid both use <pkg>_<code>.apk), and some links carry no name at all.
+        val existing = Downloads.list(context).mapNotNull { it.sourceUrl }.toSet()
+        val autoInstall = prefs.pinnedAutoInstall
         updates.filter { it.canDownload }.forEach { result ->
-            val name = result.fileName
-            if (name != null && name in existing) return@forEach
+            val url = result.downloadUrl!!
+            if (url in existing) return@forEach
             EventLog.info("auto-downloading " + (result.label ?: result.packageName) + " " + result.availableVersionName)
             Downloads.start(
                 context,
                 DownloadRequest(
-                    url = result.downloadUrl!!,
+                    url = url,
                     userAgent = Http.USER_AGENT,
-                    contentDisposition = null,
+                    contentDisposition = DownloadNames.attachment(result.fileName),
                     mimeType = null,
                     referer = null,
                 ),

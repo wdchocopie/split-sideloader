@@ -10,6 +10,7 @@ import com.sideload.splitinstaller.core.apps.InstallerInfo
 import com.sideload.splitinstaller.core.apps.LaunchDiagnosis
 import com.sideload.splitinstaller.core.apps.LaunchDiagnostics
 import com.sideload.splitinstaller.core.install.BackendResolver
+import com.sideload.splitinstaller.core.sources.DownloadNames
 import com.sideload.splitinstaller.core.sources.DownloadRequest
 import com.sideload.splitinstaller.core.sources.Downloads
 import com.sideload.splitinstaller.core.update.Http
@@ -129,20 +130,21 @@ class AppsViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** F-Droid is the one source that can confirm it has the package before pinning. */
-    fun pinFDroid(packageName: String, label: String?, onResult: (Boolean) -> Unit) = viewModelScope.launch {
+    /** F-Droid and IzzyOnDroid can confirm they have the package before it is pinned. */
+    fun pinPackage(packageName: String, label: String?, kind: UpdateKind, onResult: (Boolean) -> Unit) = viewModelScope.launch {
         val app = getApplication<Application>()
-        val found = UpdateChecker.onFDroid(packageName)
+        val found = UpdateChecker.inRepo(kind, packageName)
         onResult(found)
         if (found) {
-            UpdatePins.pin(app, UpdatePin(packageName, UpdateKind.FDROID, packageName, label))
+            UpdatePins.pin(app, UpdatePin(packageName, kind, packageName, label))
             checkUpdate(packageName)
         }
     }
 
-    fun pinGitHub(packageName: String, label: String?, input: String): Boolean {
-        val repo = UpdateChecker.githubRepo(input) ?: return false
-        UpdatePins.pin(getApplication(), UpdatePin(packageName, UpdateKind.GITHUB, repo, label))
+    /** GitHub, GitLab or Forgejo: a link or a short form, checked for its shape only. */
+    fun pinRelease(packageName: String, label: String?, kind: UpdateKind, input: String): Boolean {
+        val value = UpdateChecker.releaseSource(kind, input) ?: return false
+        UpdatePins.pin(getApplication(), UpdatePin(packageName, kind, value, label))
         checkUpdate(packageName)
         return true
     }
@@ -162,12 +164,14 @@ class AppsViewModel(app: Application) : AndroidViewModel(app) {
     fun downloadUpdate(result: UpdateResult) = viewModelScope.launch {
         val url = result.downloadUrl ?: return@launch
         val app = getApplication<Application>()
-        val silent = BackendResolver.probe(app, rootConfirmed).silentAvailable
         withContext(Dispatchers.IO) {
+            // The same answer the installing worker will get, so the UI does not promise otherwise.
+            val silent = BackendResolver.backgroundSilent(app, prefs.backend) != null
             Downloads.start(
                 app,
-                DownloadRequest(url, Http.USER_AGENT, null, null, null),
-                autoInstall = prefs.updateAutoInstall && silent,
+                // The source's own file name: a link like GitLab's /package_files/<id>/download has none.
+                DownloadRequest(url, Http.USER_AGENT, DownloadNames.attachment(result.fileName), null, null),
+                autoInstall = prefs.pinnedAutoInstall && silent,
                 expectedPackage = result.packageName,
             )
         }

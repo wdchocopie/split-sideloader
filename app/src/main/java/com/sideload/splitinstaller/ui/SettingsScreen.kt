@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.InstallMobile
+import androidx.compose.material.icons.rounded.Launch
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.Contrast
@@ -107,6 +108,8 @@ data class SettingsValues(
     val updateWifiOnly: Boolean = true,
     val updateAutoDownload: Boolean = false,
     val updateAutoInstall: Boolean = false,
+    val pinnedAutoInstall: Boolean = true,
+    val openAfterInstall: Boolean = false,
     /** "owner/repo" or an https manifest URL; empty means this app does not update itself. */
     val otaChannel: String = "",
     val otaAutoDownload: Boolean = true,
@@ -209,6 +212,8 @@ fun SettingsScreen(
                         { actions.onValues(values.copy(grantAll = it)) }, Icons.Rounded.LockOpen)
                     SwitchRow(stringResource(R.string.opt_downgrade), stringResource(R.string.opt_downgrade_desc), values.allowDowngrade,
                         { actions.onValues(values.copy(allowDowngrade = it)) }, Icons.Rounded.Update)
+                    SwitchRow(stringResource(R.string.opt_open_after), stringResource(R.string.opt_open_after_desc), values.openAfterInstall,
+                        { actions.onValues(values.copy(openAfterInstall = it)) }, Icons.Rounded.Launch)
                 }
             }
 
@@ -260,11 +265,19 @@ fun SettingsScreen(
                         Icons.Rounded.Download, enabled = values.updateInterval != UpdateInterval.OFF,
                     )
                     SwitchRow(
+                        stringResource(R.string.updates_pinned_install), stringResource(R.string.updates_pinned_install_desc),
+                        values.pinnedAutoInstall, { actions.onValues(values.copy(pinnedAutoInstall = it)) },
+                        Icons.Rounded.SystemUpdateAlt,
+                    )
+                    SwitchRow(
                         stringResource(R.string.updates_auto_install), stringResource(R.string.updates_auto_install_desc),
                         values.updateAutoInstall, { actions.onValues(values.copy(updateAutoInstall = it)) },
                         Icons.Rounded.InstallMobile,
                     )
-                    if (values.updateAutoInstall && device?.silentAvailable != true) {
+                    // Only when something would really be waiting to install itself.
+                    val pinnedInstalls = values.pinnedAutoInstall && values.updateAutoDownload &&
+                        values.updateInterval != UpdateInterval.OFF
+                    if ((values.updateAutoInstall || pinnedInstalls) && device?.silentAvailable != true) {
                         FindingRow(
                             com.sideload.splitinstaller.core.bundle.Severity.WARN,
                             stringResource(R.string.updates_needs_silent),
