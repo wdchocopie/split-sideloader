@@ -265,9 +265,14 @@ private fun AppResults(search: AppSearch, actions: SourcesActions) {
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        if (search.noBuild == hit.pageUrl) {
+                        val problem = when (hit.pageUrl) {
+                            search.noBuild -> R.string.results_no_build
+                            search.lookupFailed -> R.string.results_lookup_failed
+                            else -> null
+                        }
+                        problem?.let {
                             Text(
-                                stringResource(R.string.results_no_build),
+                                stringResource(it),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )

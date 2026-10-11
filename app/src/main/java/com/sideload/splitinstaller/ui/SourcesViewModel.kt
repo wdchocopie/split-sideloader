@@ -105,6 +105,8 @@ data class AppSearch(
     val installing: String? = null,
     /** The hit that turned out to have no file this phone can install. */
     val noBuild: String? = null,
+    /** The hit whose source did not answer when its newest build was asked for. */
+    val lookupFailed: String? = null,
 ) {
     val shown: Boolean get() = busy || hits != null || failed
 }
@@ -413,11 +415,23 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun installHit(hit: AppHit) = viewModelScope.launch {
-        _state.update { it.copy(found = it.found.copy(installing = hit.pageUrl, noBuild = null)) }
-        val latest = runCatching { UpdateChecker.resolveLatest(hit.source, Build.SUPPORTED_ABIS.toList()) }.getOrNull()
-        _state.update { it.copy(found = it.found.copy(installing = null, noBuild = if (latest == null) hit.pageUrl else null)) }
+        _state.update { it.copy(found = it.found.copy(installing = hit.pageUrl, noBuild = null, lookupFailed = null)) }
+        val result = runCatching { UpdateChecker.resolveLatest(hit.source, Build.SUPPORTED_ABIS.toList()) }
+        val latest = result.getOrNull()
+        // "No file" only when the source answered; GitHub refuses past 60 lookups an hour per network.
+        _state.update {
+            it.copy(
+                found = it.found.copy(
+                    installing = null,
+                    noBuild = hit.pageUrl.takeIf { result.isSuccess && latest == null },
+                    lookupFailed = hit.pageUrl.takeIf { result.isFailure },
+                )
+            )
+        }
         if (latest == null) {
-            EventLog.warn("${hit.source.value} has no file this phone can install")
+            result.exceptionOrNull()
+                ?.let { EventLog.warn("could not look up ${hit.source.value}: ${it.message}") }
+                ?: EventLog.warn("${hit.source.value} has no file this phone can install")
             return@launch
         }
         startInstallDownload(latest.url, latest.fileName, latest.packageName)

@@ -574,4 +574,5 @@
     <string name="results_failed">%1$s did not answer. Try again, or open the website.</string>
     <string name="results_no_build">No file this phone can install in its newest release.</string>
     <string name="results_page">Page</string>
+    <string name="results_lookup_failed">The source did not answer; it may limit lookups per hour. Try again in a while.</string>
 </resources>
