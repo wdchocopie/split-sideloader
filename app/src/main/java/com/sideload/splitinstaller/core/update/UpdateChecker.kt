@@ -35,8 +35,18 @@ data class LatestBuild(
     val packageName: String?,
 )
 
-/** One app found by name in the F-Droid catalogue. */
-data class FDroidHit(val name: String, val summary: String?, val packageName: String, val iconUrl: String?)
+/**
+ * One app found by name on a source with a search API: where its builds come from ([source],
+ * resolved with [UpdateChecker.resolveLatest] on Install), and its page there.
+ */
+data class AppHit(
+    val name: String,
+    val summary: String?,
+    val source: SourceRef,
+    val pageUrl: String,
+    /** A second line: the package name, or the project and its stars. */
+    val detail: String? = null,
+)
 
 /**
  * Asks a package's pinned source what the newest version is.
@@ -343,7 +353,7 @@ object UpdateChecker {
     }
 
     /** Apps on F-Droid whose name matches; the exact name first, then F-Droid's own order. */
-    suspend fun searchFDroid(query: String): List<FDroidHit> = withContext(Dispatchers.IO) {
+    suspend fun searchFDroid(query: String): List<AppHit> = withContext(Dispatchers.IO) {
         val q = query.trim()
         if (q.isEmpty()) return@withContext emptyList()
         val hits = parseFDroidSearch(Http.getString(FDROID_SEARCH + URLEncoder.encode(q, "UTF-8"), "application/json"))
@@ -351,18 +361,86 @@ object UpdateChecker {
     }
 
     /** search.f-droid.org gives no package name; it is the last part of each app's page URL. */
-    fun parseFDroidSearch(body: String): List<FDroidHit> {
+    fun parseFDroidSearch(body: String): List<AppHit> {
         val apps = JSONObject(body).optJSONArray("apps") ?: return emptyList()
-        val hits = ArrayList<FDroidHit>()
+        val hits = ArrayList<AppHit>()
         for (i in 0 until apps.length()) {
             val o = apps.optJSONObject(i) ?: continue
             val name = o.str("name") ?: continue
             val url = o.str("url") ?: continue
             val pkg = url.trimEnd('/').substringAfter("/packages/", "").substringBefore('/')
             if (!PACKAGE.matches(pkg)) continue
-            hits += FDroidHit(name, o.str("summary"), pkg, o.str("icon"))
+            hits += AppHit(name, o.str("summary"), SourceRef(UpdateKind.FDROID, pkg), FDROID.page + pkg, pkg)
         }
         return hits
+    }
+
+    /**
+     * Projects on GitHub matching [query], best match first. "android" is added to the query:
+     * GitHub searches every kind of project, and an app's name, description or topics nearly
+     * always say what it runs on. Whether the newest release has an APK is known only on Install.
+     */
+    suspend fun searchGitHub(query: String): List<AppHit> = withContext(Dispatchers.IO) {
+        val q = query.trim()
+        if (q.isEmpty()) return@withContext emptyList()
+        val terms = if (q.contains("android", ignoreCase = true)) q else "$q android"
+        parseGitHubSearch(
+            Http.getString(
+                "https://api.github.com/search/repositories?per_page=20&q=" + URLEncoder.encode(terms, "UTF-8"),
+                "application/vnd.github+json",
+            )
+        )
+    }
+
+    fun parseGitHubSearch(body: String): List<AppHit> {
+        val items = JSONObject(body).optJSONArray("items") ?: return emptyList()
+        return (0 until items.length()).mapNotNull { i ->
+            val o = items.optJSONObject(i) ?: return@mapNotNull null
+            val repo = o.str("full_name")?.let(::githubRepo) ?: return@mapNotNull null
+            AppHit(
+                name = o.str("name") ?: repo.substringAfter('/'),
+                summary = o.str("description"),
+                source = SourceRef(UpdateKind.GITHUB, repo),
+                pageUrl = "https://github.com/$repo",
+                detail = projectLine(repo, o.optLong("stargazers_count")),
+            )
+        }
+    }
+
+    /** Projects on a Forgejo or Gitea server (Codeberg), the most starred first; forks are left out. */
+    suspend fun searchForgejo(host: String, query: String): List<AppHit> = withContext(Dispatchers.IO) {
+        val q = query.trim()
+        if (q.isEmpty()) return@withContext emptyList()
+        parseForgejoSearch(
+            Http.getString(
+                "https://$host/api/v1/repos/search?limit=20&sort=stars&order=desc&q=" + URLEncoder.encode(q, "UTF-8"),
+                "application/json",
+            ),
+            host,
+        )
+    }
+
+    fun parseForgejoSearch(body: String, host: String): List<AppHit> {
+        val data = JSONObject(body).optJSONArray("data") ?: return emptyList()
+        return (0 until data.length()).mapNotNull { i ->
+            val o = data.optJSONObject(i) ?: return@mapNotNull null
+            if (o.optBoolean("fork")) return@mapNotNull null
+            val repo = o.str("full_name")?.let { ownerRepo(it.split('/')) } ?: return@mapNotNull null
+            AppHit(
+                name = o.str("name") ?: repo.substringAfter('/'),
+                summary = o.str("description"),
+                source = SourceRef(UpdateKind.FORGEJO, "$host/$repo"),
+                pageUrl = "https://$host/$repo",
+                detail = projectLine(repo, o.optLong("stars_count")),
+            )
+        }
+    }
+
+    /** "owner/repo · ★ 1.2k" */
+    private fun projectLine(repo: String, stars: Long): String = when {
+        stars >= 1000 -> "$repo · ★ " + (if (stars >= 10_000) "${stars / 1000}k" else "%.1fk".format(java.util.Locale.ROOT, stars / 1000.0))
+        stars > 0 -> "$repo · ★ $stars"
+        else -> repo
     }
 
     /** Is this package in the F-Droid-style repository [kind]? Used before pinning it. */

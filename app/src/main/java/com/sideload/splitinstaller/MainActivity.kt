@@ -528,9 +528,10 @@ class MainActivity : ComponentActivity() {
                             onLinkText = srcVm::setLink,
                             onLinkGo = { srcVm.prepareLink() },
                             onLinkOpenPage = srcVm::openLinkPage,
-                            onFDroidInstall = { hit -> srcVm.installFromFDroid(hit) },
-                            onFDroidPage = { pkg -> srcVm.openUrl("https://f-droid.org/packages/$pkg") },
-                            onFDroidClose = srcVm::clearFDroid,
+                            onHitInstall = { hit -> srcVm.installHit(hit) },
+                            onHitPage = srcVm::openHitPage,
+                            onResultsWeb = srcVm::openResultsOnWeb,
+                            onResultsClose = srcVm::clearResults,
                         ),
                         modifier = inner,
                     )

@@ -52,10 +52,11 @@ data class Source(
 /**
  * The sources the app offers, built in and user-added.
  *
- * Every one of them is browsed as a website, the way its owner serves it. Nothing here
- * talks to a private API or scrapes a page in the background: the sites that matter sit
- * behind bot protection and forbid automated downloads, and a person tapping "download"
- * in a browser is exactly what they are built for.
+ * Sources with a public search API (F-Droid, IzzyOnDroid's catalogue, GitHub, Codeberg)
+ * answer a search with a list in the app; the rest are browsed as websites, the way their
+ * owners serve them. Nothing here scrapes a page in the background: APKMirror and APKPure
+ * sit behind bot protection and forbid automated downloads, and a person tapping
+ * "download" in a browser is exactly what they are built for.
  */
 object Sources {
 
@@ -88,6 +89,16 @@ object Sources {
             builtin = true,
         ),
         Source(
+            id = "izzyondroid",
+            name = "IzzyOnDroid",
+            homeUrl = "https://apt.izzysoft.de/fdroid/",
+            // Its site searches through a form; a search here is answered from its catalogue.
+            searchUrl = null,
+            formats = listOf("APK"),
+            trust = SourceTrust.FOSS,
+            builtin = true,
+        ),
+        Source(
             id = "github",
             name = "GitHub Releases",
             homeUrl = "https://github.com/",
@@ -96,7 +107,19 @@ object Sources {
             trust = SourceTrust.FOSS,
             builtin = true,
         ),
+        Source(
+            id = "codeberg",
+            name = "Codeberg",
+            homeUrl = "https://codeberg.org/",
+            searchUrl = "https://codeberg.org/explore/repos?q={q}",
+            formats = listOf("APK"),
+            trust = SourceTrust.FOSS,
+            builtin = true,
+        ),
     )
+
+    /** Sources whose search is answered in the app with an Install button per result. */
+    val NATIVE_SEARCH = setOf("fdroid", "izzyondroid", "github", "codeberg")
 
     private const val PREFS = "sources"
     private const val KEY_CUSTOM = "custom"

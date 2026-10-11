@@ -19,14 +19,16 @@ import com.sideload.splitinstaller.core.sources.LinkProblem
 import com.sideload.splitinstaller.core.sources.Links
 import com.sideload.splitinstaller.core.sources.Source
 import com.sideload.splitinstaller.core.sources.Sources
-import com.sideload.splitinstaller.core.update.FDroidHit
+import com.sideload.splitinstaller.core.update.AppHit
 import com.sideload.splitinstaller.core.update.Http
+import com.sideload.splitinstaller.core.update.IzzyIndex
 import com.sideload.splitinstaller.core.update.SourceRef
 import com.sideload.splitinstaller.core.update.UpdateChecker
 import com.sideload.splitinstaller.core.update.UpdateKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -60,7 +62,7 @@ data class SourcesState(
     val pinFor: String? = null,
     val pinLabel: String? = null,
     val link: LinkState = LinkState(),
-    val fdroid: FDroidSearch = FDroidSearch(),
+    val found: AppSearch = AppSearch(),
 ) {
     val selected: Source get() = sources.firstOrNull { it.id == selectedId } ?: sources.first()
 }
@@ -89,14 +91,23 @@ data class LinkState(
     val page: String? = null,
 )
 
-/** F-Droid's own search, answered in the app; null hits means none asked yet. */
-data class FDroidSearch(
+/** A search answered in the app by a source with an API; null hits means none asked yet. */
+data class AppSearch(
+    /** The source asked, and its name as shown; null while nothing was searched. */
+    val sourceId: String? = null,
+    val sourceName: String = "",
+    val query: String = "",
     val busy: Boolean = false,
-    val hits: List<FDroidHit>? = null,
+    val hits: List<AppHit>? = null,
+    /** The search itself did not answer. */
     val failed: Boolean = false,
-    /** The package whose newest build is being looked up. */
+    /** The page of the hit whose newest build is being looked up. */
     val installing: String? = null,
-)
+    /** The hit that turned out to have no file this phone can install. */
+    val noBuild: String? = null,
+) {
+    val shown: Boolean get() = busy || hits != null || failed
+}
 
 class SourcesViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -127,9 +138,9 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
     fun search() {
         val s = _state.value
         val source = s.selected
-        // F-Droid answers searches for apps: the results come with an Install button.
-        if (source.id == FDROID_SOURCE && s.query.isNotBlank()) {
-            searchFDroid()
+        // Sources with a search API answer with a list of apps, each with an Install button.
+        if (source.id in Sources.NATIVE_SEARCH && s.query.isNotBlank()) {
+            searchApps(source)
             return
         }
         EventLog.info("search on ${source.name}: ${s.query.trim()}")
@@ -371,39 +382,66 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
         refreshDownloads()
     }
 
-    // ---- F-Droid search --------------------------------------------------------
+    // ---- searches answered in the app ------------------------------------------
 
-    fun searchFDroid() {
+    private var searchJob: Job? = null
+
+    fun searchApps(source: Source = _state.value.selected) {
         val q = _state.value.query.trim()
-        if (q.isEmpty()) return
-        EventLog.info("search on F-Droid: $q")
-        _state.update { it.copy(fdroid = FDroidSearch(busy = true)) }
-        viewModelScope.launch {
-            val result = runCatching { UpdateChecker.searchFDroid(q) }
-            result.exceptionOrNull()?.let { EventLog.warn("F-Droid search failed: ${it.message}") }
-            _state.update { it.copy(fdroid = FDroidSearch(hits = result.getOrNull(), failed = result.isFailure)) }
+        if (q.isEmpty() || source.id !in Sources.NATIVE_SEARCH) return
+        EventLog.info("search on ${source.name}: $q")
+        searchJob?.cancel()
+        _state.update { it.copy(found = AppSearch(source.id, source.name, q, busy = true)) }
+        searchJob = viewModelScope.launch {
+            val result = runCatching {
+                withTimeout(SEARCH_DEADLINE_MS) {
+                    when (source.id) {
+                        "fdroid" -> UpdateChecker.searchFDroid(q)
+                        "izzyondroid" -> IzzyIndex.search(getApplication(), q)
+                        "github" -> UpdateChecker.searchGitHub(q)
+                        else -> UpdateChecker.searchForgejo("codeberg.org", q)
+                    }
+                }
+            }
+            // A search replaced or closed meanwhile must not put its answer up.
+            ensureActive()
+            result.exceptionOrNull()?.let { EventLog.warn("${source.name} search failed: ${it.message}") }
+            _state.update {
+                it.copy(found = AppSearch(source.id, source.name, q, hits = result.getOrNull(), failed = result.isFailure))
+            }
         }
     }
 
-    fun installFromFDroid(hit: FDroidHit) = viewModelScope.launch {
-        _state.update { it.copy(fdroid = it.fdroid.copy(installing = hit.packageName)) }
-        val latest = runCatching {
-            UpdateChecker.resolveLatest(SourceRef(UpdateKind.FDROID, hit.packageName), Build.SUPPORTED_ABIS.toList())
-        }.getOrNull()
-        _state.update { it.copy(fdroid = it.fdroid.copy(installing = null, failed = latest == null)) }
+    fun installHit(hit: AppHit) = viewModelScope.launch {
+        _state.update { it.copy(found = it.found.copy(installing = hit.pageUrl, noBuild = null)) }
+        val latest = runCatching { UpdateChecker.resolveLatest(hit.source, Build.SUPPORTED_ABIS.toList()) }.getOrNull()
+        _state.update { it.copy(found = it.found.copy(installing = null, noBuild = if (latest == null) hit.pageUrl else null)) }
         if (latest == null) {
-            EventLog.warn("F-Droid has no build of ${hit.packageName} to install")
+            EventLog.warn("${hit.source.value} has no file this phone can install")
             return@launch
         }
-        startInstallDownload(latest.url, latest.fileName, hit.packageName)
+        startInstallDownload(latest.url, latest.fileName, latest.packageName)
     }
 
-    fun clearFDroid() = _state.update { it.copy(fdroid = FDroidSearch()) }
+    fun openHitPage(hit: AppHit) = openUrl(hit.pageUrl)
+
+    /** The same search on the source's website, in the browser. */
+    fun openResultsOnWeb() {
+        val found = _state.value.found
+        val source = _state.value.sources.firstOrNull { it.id == found.sourceId } ?: return
+        open(source.searchFor(found.query), source)
+    }
+
+    fun clearResults() {
+        searchJob?.cancel()
+        _state.update { it.copy(found = AppSearch()) }
+    }
 
     private companion object {
-        const val FDROID_SOURCE = "fdroid"
-
         /** A check that has not answered by then is not going to. */
         const val LINK_DEADLINE_MS = 45_000L
+
+        /** IzzyOnDroid's first search fetches its catalogue, a few MB. */
+        const val SEARCH_DEADLINE_MS = 60_000L
     }
 }

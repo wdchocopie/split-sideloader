@@ -46,6 +46,8 @@ import com.sideload.splitinstaller.core.sources.DownloadStatus
 import com.sideload.splitinstaller.core.sources.Source
 import com.sideload.splitinstaller.core.sources.SourceTrust
 import com.sideload.splitinstaller.core.sources.Sources
+import com.sideload.splitinstaller.core.update.AppHit
+import com.sideload.splitinstaller.core.update.SourceRef
 import com.sideload.splitinstaller.core.update.UpdateKind
 import com.sideload.splitinstaller.core.update.UpdatePin
 import com.sideload.splitinstaller.core.update.UpdateResult
@@ -73,6 +75,7 @@ import com.sideload.splitinstaller.ui.SettingsScreen
 import com.sideload.splitinstaller.ui.SettingsValues
 import com.sideload.splitinstaller.ui.SourcesActions
 import com.sideload.splitinstaller.ui.SourcesScreen
+import com.sideload.splitinstaller.ui.AppSearch
 import com.sideload.splitinstaller.ui.SourcesState
 import com.sideload.splitinstaller.ui.SplitSideloaderTheme
 import com.sideload.splitinstaller.ui.Tabs
@@ -258,6 +261,10 @@ class ScreenshotTest {
 
     @Test fun sources_dark() = shot("sources_dark", dark = true) {
         WithNav(Tabs.SOURCES) { m -> SourcesScreen(Samples.sources, SourcesActions(), m) }
+    }
+
+    @Test fun sources_results_light() = shot("sources_results_light", dark = false) {
+        WithNav(Tabs.SOURCES) { m -> SourcesScreen(Samples.sourcesFound, SourcesActions(), m) }
     }
 
     @Test fun app_detail_dark() = shot("app_detail_dark", dark = true) {
@@ -625,6 +632,36 @@ private object Samples {
         "broken install: Zenless Zone Zero (com.HoYoverse.Nap)" to Severity.ERROR,
         "extractNativeLibs is on but the lib folder is empty — the libraries were not extracted" to Severity.WARN,
     ).mapIndexed { i, (msg, sev) -> LogLine(now - (40 - i) * 7_000L, sev, msg) }
+
+    /** A search answered in the app: GitHub, one result still being looked up, one with no APK. */
+    val sourcesFound = SourcesState(
+        selectedId = "github",
+        query = "newpipe",
+        found = AppSearch(
+            sourceId = "github",
+            sourceName = "GitHub Releases",
+            query = "newpipe",
+            hits = listOf(
+                AppHit(
+                    "NewPipe", "A libre lightweight streaming front-end for Android.",
+                    SourceRef(UpdateKind.GITHUB, "TeamNewPipe/NewPipe"), "https://github.com/TeamNewPipe/NewPipe",
+                    "TeamNewPipe/NewPipe · ★ 38k",
+                ),
+                AppHit(
+                    "PipePipe", "A fork of NewPipe with more services",
+                    SourceRef(UpdateKind.GITHUB, "InfinityLoop1308/PipePipe"), "https://github.com/InfinityLoop1308/PipePipe",
+                    "InfinityLoop1308/PipePipe · ★ 3.1k",
+                ),
+                AppHit(
+                    "NewPipeExtractor", "NewPipe's core library for extracting data from streaming sites",
+                    SourceRef(UpdateKind.GITHUB, "TeamNewPipe/NewPipeExtractor"), "https://github.com/TeamNewPipe/NewPipeExtractor",
+                    "TeamNewPipe/NewPipeExtractor · ★ 1.7k",
+                ),
+            ),
+            installing = "https://github.com/InfinityLoop1308/PipePipe",
+            noBuild = "https://github.com/TeamNewPipe/NewPipeExtractor",
+        ),
+    )
 
     val sources = SourcesState(
         sources = Sources.BUILTIN + Source(

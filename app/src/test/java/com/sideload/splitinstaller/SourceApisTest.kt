@@ -1,5 +1,6 @@
 package com.sideload.splitinstaller
 
+import com.sideload.splitinstaller.core.update.IzzyIndex
 import com.sideload.splitinstaller.core.update.ReleaseAsset
 import com.sideload.splitinstaller.core.update.SourceRef
 import com.sideload.splitinstaller.core.update.UpdateChecker
@@ -107,8 +108,65 @@ class SourceApisTest {
           {"name":"Not an app","url":"https://f-droid.org/en/about"},
           {"name":"Termux","summary":null,"url":"https://f-droid.org/en/packages/com.termux/"}]}"""
         val hits = UpdateChecker.parseFDroidSearch(body)
-        assertEquals(listOf("com.termux.api", "com.termux"), hits.map { it.packageName })
+        assertEquals(listOf("com.termux.api", "com.termux"), hits.map { it.source.value })
+        assertEquals(SourceRef(UpdateKind.FDROID, "com.termux"), hits[1].source)
+        assertEquals("https://f-droid.org/packages/com.termux", hits[1].pageUrl)
         assertNull(hits[1].summary)
+    }
+
+    @Test
+    fun `github search gives repositories to resolve releases from`() {
+        val body = """{"total_count":2,"items":[
+          {"name":"NewPipe","full_name":"TeamNewPipe/NewPipe","description":"A libre lightweight streaming front-end for Android.",
+           "stargazers_count":38512,"html_url":"https://github.com/TeamNewPipe/NewPipe"},
+          {"name":"tiny","full_name":"someone/tiny","description":null,"stargazers_count":7},
+          {"name":"broken","full_name":null}]}"""
+        val hits = UpdateChecker.parseGitHubSearch(body)
+        assertEquals(2, hits.size)
+        assertEquals(SourceRef(UpdateKind.GITHUB, "TeamNewPipe/NewPipe"), hits[0].source)
+        assertEquals("https://github.com/TeamNewPipe/NewPipe", hits[0].pageUrl)
+        assertEquals("TeamNewPipe/NewPipe · ★ 38k", hits[0].detail)
+        assertNull(hits[1].summary)
+        assertEquals("someone/tiny · ★ 7", hits[1].detail)
+    }
+
+    @Test
+    fun `codeberg search keeps the host and leaves forks out`() {
+        val body = """{"ok":true,"data":[
+          {"name":"Gadgetbridge","full_name":"Freeyourgadget/Gadgetbridge","description":"Use your gadget without the vendor app",
+           "stars_count":1520,"fork":false},
+          {"name":"Gadgetbridge","full_name":"someone/Gadgetbridge","fork":true,"stars_count":2}]}"""
+        val hits = UpdateChecker.parseForgejoSearch(body, "codeberg.org")
+        assertEquals(1, hits.size)
+        assertEquals(SourceRef(UpdateKind.FORGEJO, "codeberg.org/Freeyourgadget/Gadgetbridge"), hits[0].source)
+        assertEquals("https://codeberg.org/Freeyourgadget/Gadgetbridge", hits[0].pageUrl)
+        assertEquals("Freeyourgadget/Gadgetbridge · ★ 1.5k", hits[0].detail)
+    }
+
+    @Test
+    fun `izzyondroid's catalogue is searched on the phone, best name first`() {
+        val apps = listOf(
+            IzzyIndex.Entry("com.machiav3lli.backup", "Neo Backup", "Backup and restore your apps"),
+            IzzyIndex.Entry("org.example.neo", "Neo Launcher Extra", null),
+            IzzyIndex.Entry("com.example.files", "Files", "Manage backups, photos and more"),
+            IzzyIndex.Entry("com.example.backup.tool", "Saver", null),
+        )
+        assertEquals(listOf("Neo Backup"), IzzyIndex.rank(apps, "neo backup").map { it.name })
+        // Name first, then package, then summary.
+        assertEquals(listOf("com.machiav3lli.backup", "com.example.backup.tool", "com.example.files"),
+            IzzyIndex.rank(apps, "backup").map { it.packageName })
+        assertTrue(IzzyIndex.rank(apps, "   ").isEmpty())
+        assertTrue(IzzyIndex.rank(apps, "nothing like this").isEmpty())
+    }
+
+    @Test
+    fun `the cached catalogue line survives tabs and line breaks in a summary`() {
+        val entry = IzzyIndex.Entry("com.example", "Example", "Line one\nline\ttwo")
+        val back = IzzyIndex.fromTsv(IzzyIndex.toTsv(entry))!!
+        assertEquals("com.example", back.packageName)
+        assertEquals("Line one line two", back.summary)
+        assertNull(IzzyIndex.fromTsv(IzzyIndex.toTsv(IzzyIndex.Entry("com.example", "Example", null)))!!.summary)
+        assertNull(IzzyIndex.fromTsv(""))
     }
 
     @Test

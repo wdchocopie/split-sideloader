@@ -1,8 +1,10 @@
 package com.sideload.splitinstaller
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.sideload.splitinstaller.core.sources.LinkProbe
 import com.sideload.splitinstaller.core.update.Http
+import com.sideload.splitinstaller.core.update.IzzyIndex
 import com.sideload.splitinstaller.core.update.SourceRef
 import com.sideload.splitinstaller.core.update.UpdateChecker
 import com.sideload.splitinstaller.core.update.UpdateKind
@@ -62,7 +64,33 @@ class SourceNetworkDeviceTest {
     @Test
     fun fdroidSearchFindsAnAppByName() = runBlocking<Unit> {
         val hits = UpdateChecker.searchFDroid("Termux")
-        assertTrue(hits.joinToString { it.packageName }, hits.any { it.packageName == "com.termux" })
+        assertTrue(hits.joinToString { it.source.value }, hits.any { it.source.value == "com.termux" })
+        assertTrue(hits.none { it.summary == "null" })
+    }
+
+    @Test
+    fun izzyOnDroidCatalogueIsFetchedAndSearched() = runBlocking<Unit> {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val hits = IzzyIndex.search(context, "Neo Backup")
+        assertTrue(hits.joinToString { it.source.value }, hits.any { it.source.value == "com.machiav3lli.backup" })
+        // Its newest build resolves like any pinned IzzyOnDroid app.
+        val first = hits.first { it.source.value == "com.machiav3lli.backup" }
+        assertNotNull(UpdateChecker.resolveLatest(first.source, abis))
+    }
+
+    @Test
+    fun githubSearchFindsTheProjectAndItsApk() = runBlocking<Unit> {
+        val hits = UpdateChecker.searchGitHub("NewPipe")
+        val hit = hits.firstOrNull { it.source.value == "TeamNewPipe/NewPipe" }
+        assertNotNull(hits.joinToString { it.source.value }, hit)
+        assertTrue(hits.none { it.summary == "null" })
+        assertNotNull(UpdateChecker.resolveLatest(hit!!.source, abis))
+    }
+
+    @Test
+    fun codebergSearchFindsTheProject() = runBlocking<Unit> {
+        val hits = UpdateChecker.searchForgejo("codeberg.org", "Gadgetbridge")
+        assertTrue(hits.joinToString { it.source.value }, hits.any { it.source.value == "codeberg.org/Freeyourgadget/Gadgetbridge" })
         assertTrue(hits.none { it.summary == "null" })
     }
 }

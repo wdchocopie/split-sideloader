@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -83,7 +84,7 @@ import com.sideload.splitinstaller.core.linkProblemRes
 import com.sideload.splitinstaller.core.sources.DownloadItem
 import com.sideload.splitinstaller.core.sources.DownloadStatus
 import com.sideload.splitinstaller.core.sources.LinkProblem
-import com.sideload.splitinstaller.core.update.FDroidHit
+import com.sideload.splitinstaller.core.update.AppHit
 import com.sideload.splitinstaller.core.sources.Source
 import com.sideload.splitinstaller.core.sources.SourceTrust
 
@@ -103,9 +104,11 @@ class SourcesActions(
     val onLinkGo: () -> Unit = {},
     /** The link in the browser instead, after the server refused it. */
     val onLinkOpenPage: () -> Unit = {},
-    val onFDroidInstall: (FDroidHit) -> Unit = {},
-    val onFDroidPage: (String) -> Unit = {},
-    val onFDroidClose: () -> Unit = {},
+    val onHitInstall: (AppHit) -> Unit = {},
+    val onHitPage: (AppHit) -> Unit = {},
+    /** The same search on the source's website instead. */
+    val onResultsWeb: () -> Unit = {},
+    val onResultsClose: () -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,8 +135,8 @@ fun SourcesScreen(state: SourcesState, actions: SourcesActions, modifier: Modifi
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item(key = "search") { SearchCard(state, actions) }
-            if (state.fdroid.busy || state.fdroid.hits != null || state.fdroid.failed) {
-                item(key = "fdroid") { FDroidResults(state.fdroid, actions) }
+            if (state.found.shown) {
+                item(key = "found") { AppResults(state.found, actions) }
             }
             item(key = "link") { LinkCard(state.link, actions) }
 
@@ -220,49 +223,75 @@ private fun SearchCard(state: SourcesState, actions: SourcesActions) {
     }
 }
 
-// ---- F-Droid search results -----------------------------------------------------------------
+// ---- search results answered in the app ---------------------------------------------------
 
 @Composable
-private fun FDroidResults(search: FDroidSearch, actions: SourcesActions) {
+private fun AppResults(search: AppSearch, actions: SourcesActions) {
     AppCard(spacing = 8.dp) {
-        CardTitle(stringResource(R.string.fdroid_results_title), Icons.Rounded.Search) {
-            IconButton(onClick = actions.onFDroidClose) { Icon(Icons.Rounded.Close, stringResource(R.string.action_clear)) }
+        CardTitle(stringResource(R.string.results_title, search.sourceName), Icons.Rounded.Search) {
+            TextButton(onClick = actions.onResultsWeb) { Text(stringResource(R.string.results_web)) }
+            IconButton(onClick = actions.onResultsClose) { Icon(Icons.Rounded.Close, stringResource(R.string.action_clear)) }
         }
         when {
             search.busy -> LinearProgressIndicator(Modifier.fillMaxWidth())
-            search.failed && search.hits == null -> Text(
-                stringResource(R.string.fdroid_failed),
+            search.failed -> Text(
+                stringResource(R.string.results_failed, search.sourceName),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
-            search.hits.isNullOrEmpty() -> Text(stringResource(R.string.fdroid_none), style = MaterialTheme.typography.bodySmall)
+            search.hits.isNullOrEmpty() -> Text(
+                stringResource(R.string.results_none, search.sourceName),
+                style = MaterialTheme.typography.bodySmall,
+            )
             else -> search.hits.take(MAX_HITS).forEach { hit ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(hit.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            hit.summary ?: hit.packageName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        hit.summary?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        hit.detail?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (search.noBuild == hit.pageUrl) {
+                            Text(
+                                stringResource(R.string.results_no_build),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
-                    TextButton(onClick = { actions.onFDroidPage(hit.packageName) }) { Text(stringResource(R.string.fdroid_page)) }
+                    TextButton(onClick = { actions.onHitPage(hit) }) { Text(stringResource(R.string.results_page)) }
                     FilledTonalButton(
-                        onClick = { actions.onFDroidInstall(hit) },
+                        onClick = { actions.onHitInstall(hit) },
                         enabled = search.installing == null,
-                    ) { Text(stringResource(R.string.action_install)) }
+                    ) {
+                        // The label stays, unseen, under the spinner, so the button keeps its width.
+                        val looking = search.installing == hit.pageUrl
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(stringResource(R.string.action_install), Modifier.alpha(if (looking) 0f else 1f))
+                            if (looking) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        }
+                    }
                 }
             }
-        }
-        if (search.failed && search.hits != null) {
-            Text(stringResource(R.string.fdroid_no_build), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
     }
 }
 
-private const val MAX_HITS = 8
+private const val MAX_HITS = 10
 
 // ---- download from a link -------------------------------------------------------------------
 
@@ -528,15 +557,17 @@ private fun SourceTile(source: Source) {
     val tone = when (source.id) {
         "apkmirror" -> Tone.WARNING
         "apkpure" -> Tone.SUCCESS
-        "fdroid" -> Tone.INFO
-        "github" -> Tone.NEUTRAL
+        "fdroid", "izzyondroid" -> Tone.INFO
+        "github", "codeberg" -> Tone.NEUTRAL
         else -> Tone.PRIMARY
     }
     val initials = when (source.id) {
         "apkmirror" -> "AM"
         "apkpure" -> "AP"
         "fdroid" -> "FD"
+        "izzyondroid" -> "IZ"
         "github" -> "GH"
+        "codeberg" -> "CB"
         else -> source.name.split(' ', '-', '.').filter { it.isNotBlank() }
             .let { words -> if (words.size >= 2) words.take(2).joinToString("") { it.take(1) } else source.name.take(2) }
             .uppercase()

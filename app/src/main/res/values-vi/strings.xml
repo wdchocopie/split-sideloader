@@ -350,7 +350,7 @@
     <string name="sources_search_hint">Tìm ứng dụng</string>
     <string name="sources_search_on">Tìm trên %1$s</string>
     <string name="sources_open_on">Mở %1$s</string>
-    <string name="sources_how">Mở đúng trang của nguồn. Bấm nút tải của họ là file về thẳng đây, rồi tự mở để cài, qua đủ mọi bước kiểm tra.</string>
+    <string name="sources_how">F-Droid, IzzyOnDroid, GitHub và Codeberg trả về danh sách: bấm Cài là xong. Nguồn khác mở đúng trang của họ; bấm nút tải là file về thẳng đây, rồi tự mở để cài, qua đủ mọi bước kiểm tra.</string>
     <string name="section_downloads">Tải về</string>
     <string name="section_sources">Nguồn</string>
     <string name="trust_verbatim">file gốc, không đóng gói lại</string>
@@ -564,9 +564,10 @@
     <string name="link_open_page">Mở trong trình duyệt</string>
     <string name="link_page_title">Mở trang web này?</string>
     <string name="link_page_body">Link dẫn tới một trang web, không phải file. Trong trình duyệt, những gì trang đó tải về sẽ theo công tắc tự cài file tải từ trang web.</string>
-    <string name="fdroid_results_title">Trên F-Droid</string>
-    <string name="fdroid_none">Không tìm thấy trên F-Droid.</string>
-    <string name="fdroid_failed">Tìm trên F-Droid không có phản hồi.</string>
-    <string name="fdroid_no_build">F-Droid không có bản nào của app đó để cài.</string>
-    <string name="fdroid_page">Trang</string>
+    <string name="results_title">Trên %1$s</string>
+    <string name="results_web">Trang web</string>
+    <string name="results_none">Không tìm thấy trên %1$s.</string>
+    <string name="results_failed">%1$s không phản hồi. Thử lại, hoặc mở trang web.</string>
+    <string name="results_no_build">Bản mới nhất không có file nào cài được trên máy này.</string>
+    <string name="results_page">Trang</string>
 </resources>

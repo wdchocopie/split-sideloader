@@ -101,6 +101,13 @@ liệu mẫu đúng tình huống app sinh ra để xử lý: ZZZ cài qua QooAp
 
 ## Tính năng
 
+### Mới trong 1.5.6 — tìm ra danh sách, cài bằng một nút
+
+- Tab **Nguồn**: chọn **F-Droid**, **IzzyOnDroid**, **GitHub Releases** hoặc **Codeberg**, gõ tên app, bấm Tìm → danh sách ngay trong app, mỗi dòng có **Trang** và **Cài** (bản mới nhất hợp với máy, tải rồi cài luôn). Nút **Trang web** mở cùng tìm kiếm đó trên trang của nguồn.
+- IzzyOnDroid không có API tìm kiếm: app tải `index-v1.jar` (~4 MB) tối đa một lần mỗi ngày, rút gọn còn tên/mô tả/gói trong bộ nhớ đệm (`izzy-apps.tsv`) và tìm trên máy. Chỉ danh sách đến từ đây; file cài vẫn lấy qua API gói và qua đủ bước kiểm tra gói, chữ ký.
+- GitHub: `search/repositories` (không cần đăng nhập, 10 lượt/phút), thêm từ "android" vào truy vấn. Codeberg: `/api/v1/repos/search`, sắp theo sao, bỏ fork.
+- APKMirror, APKPure: vẫn là trình duyệt trong app (không có API, không bóc trang).
+
 ### Mới trong 1.5.5 — tải từ link, thêm nguồn tự động, mở app sau khi cài
 
 - **Tải từ link.** Tab Nguồn có thẻ **Tải từ link**: dán một link (hoặc bấm Dán), bấm **Tải và
@@ -543,7 +550,7 @@ Test chạy trên JVM, không cần máy Android:
 | `UpdateCheckerTest` | Đọc JSON thật của F-Droid và GitHub, chọn asset theo ABI, rút gọn link repo |
 | `OtaTest` | Nhận diện kênh (chặn http), đọc manifest, so phiên bản của chính app |
 | `RomQuirksTest` | Khi nào coi là bộ cài của máy "chiếm" phiên cài, và khi nào được đổ lỗi cho nó |
-| `SourceApisTest` | IzzyOnDroid (mã phiên bản dạng chuỗi), Codeberg, GitLab (link + APK trong phần mô tả), tìm F-Droid, nhận nguồn từ link, giá trị JSON `null` không thành link |
+| `SourceApisTest` | IzzyOnDroid (mã phiên bản dạng chuỗi), Codeberg, GitLab (link + APK trong phần mô tả), tìm F-Droid, GitHub, Codeberg (bỏ fork), xếp hạng và bộ nhớ đệm danh mục IzzyOnDroid, nhận nguồn từ link, giá trị JSON `null` không thành link |
 | `LinksTest` | Tách link khỏi đoạn chia sẻ, chỉ https, phân biệt file zip với trang web, đặt đuôi cho file không tên, dung lượng từ `Content-Range`, luật tự cài (gói khác, chính app, chữ ký, hạ cấp) |
 | `ScreenshotTest` | 27 màn hình, sáng/tối/AMOLED, tiếng Việt + English, so với ảnh gốc; giờ và múi giờ được ghim, nên ảnh không đổi theo máy hay theo ngày |
 
@@ -561,7 +568,7 @@ cài, nên cài bản debug một lần, mở Shizuku cho phép nó, rồi chạ
 | Test | Kiểm |
 |---|---|
 | `ShellDeviceTest` | Lệnh qua Shizuku chạy và được chờ đúng, stdin 3 MB tới nơi, lệnh treo bị cắt, mã thoát đúng; bộ cài hệ thống dò ra không phải hộp chọn app. Shizuku không chạy thì các test Shizuku bỏ qua; chạy mà chưa cho phép app thì chúng **báo lỗi**, để kết quả xanh luôn có nghĩa là đã thật sự chạy. |
-| `SourceNetworkDeviceTest` | Hỏi thật API của GitHub, IzzyOnDroid, Codeberg, GitLab và tìm F-Droid trên máy (cần mạng): `org.json` của Android đọc JSON `null` thành chữ `"null"`, điều test JVM không thấy được. |
+| `SourceNetworkDeviceTest` | Hỏi thật API của GitHub, IzzyOnDroid, Codeberg, GitLab; tìm trên F-Droid, GitHub, Codeberg và danh mục IzzyOnDroid (tải `index-v1.jar`, đọc luồng bằng `JsonReader`) trên máy (cần mạng): `org.json` của Android đọc JSON `null` thành chữ `"null"`, điều test JVM không thấy được. |
 
 ---
 

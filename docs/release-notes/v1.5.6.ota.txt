@@ -1,0 +1,2 @@
+Mới: tìm trên F-Droid, IzzyOnDroid, GitHub, Codeberg ra danh sách ngay trong app, mỗi app một nút Cài.
+New: search F-Droid, IzzyOnDroid, GitHub and Codeberg as a list in the app, with an Install button for each.

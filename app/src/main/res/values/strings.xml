@@ -351,7 +351,7 @@
     <string name="sources_search_hint">Search for an app</string>
     <string name="sources_search_on">Search on %1$s</string>
     <string name="sources_open_on">Open %1$s</string>
-    <string name="sources_how">Opens the site\'s own pages. Tap its download button and the file comes straight here, then opens for installing with every check.</string>
+    <string name="sources_how">F-Droid, IzzyOnDroid, GitHub and Codeberg answer with a list: tap Install. Other sources open their own pages; tap their download button and the file comes straight here, then opens for installing with every check.</string>
     <string name="section_downloads">Downloads</string>
     <string name="section_sources">Sources</string>
     <string name="trust_verbatim">original files, not repacked</string>
@@ -568,9 +568,10 @@
     <string name="link_open_page">Open in the browser</string>
     <string name="link_page_title">Open this web page?</string>
     <string name="link_page_body">The link leads to a web page, not a file. In the browser, what the page downloads follows the setting for site downloads.</string>
-    <string name="fdroid_results_title">On F-Droid</string>
-    <string name="fdroid_none">Nothing found on F-Droid.</string>
-    <string name="fdroid_failed">F-Droid\'s search did not answer.</string>
-    <string name="fdroid_no_build">F-Droid has no build of that app to install.</string>
-    <string name="fdroid_page">Page</string>
+    <string name="results_title">On %1$s</string>
+    <string name="results_web">Website</string>
+    <string name="results_none">Nothing found on %1$s.</string>
+    <string name="results_failed">%1$s did not answer. Try again, or open the website.</string>
+    <string name="results_no_build">No file this phone can install in its newest release.</string>
+    <string name="results_page">Page</string>
 </resources>
